@@ -1,0 +1,22 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+*.sqlite3
+
+# Android / IDE local files
+.gradle/
+.idea/
+local.properties
+app/
+build/
+
+build.gradle
+gradle.properties
+settings.gradle
+
+build.gradle
+gradle.properties
+settings.gradle
