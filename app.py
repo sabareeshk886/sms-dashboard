@@ -20,7 +20,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 
-load_dotenv()
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+load_dotenv(override=True)
 
 BASE = Path(__file__).resolve().parent
 
@@ -31,16 +35,32 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not configured")
 
 
+# ============================================================
+# FASTAPI APP
+# ============================================================
+
 app = FastAPI(title="Private SMS Dashboard")
 
 clients = set()
 
+
+# ============================================================
+# SMS MODEL
+# ============================================================
 
 class SMSIn(BaseModel):
     sender: str
     body: str
     timestamp: Optional[str] = None
 
+    # Device sending the SMS
+    # Existing Samsung devices default to "samsung"
+    device_id: str = "samsung"
+
+
+# ============================================================
+# DATABASE CONNECTION
+# ============================================================
 
 def db():
     return psycopg.connect(
@@ -49,8 +69,15 @@ def db():
     )
 
 
+# ============================================================
+# DATABASE INITIALIZATION
+# ============================================================
+
 def init_db():
+
     with db() as conn:
+
+        # Create table if it doesn't exist
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
@@ -59,17 +86,35 @@ def init_db():
                 body TEXT NOT NULL,
                 category TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
-                is_read BOOLEAN NOT NULL DEFAULT FALSE
+                is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                device_id TEXT NOT NULL DEFAULT 'samsung'
             )
             """
         )
+
+        # Add device_id to the existing table if the table
+        # was created before multi-device support.
+        conn.execute(
+            """
+            ALTER TABLE messages
+            ADD COLUMN IF NOT EXISTS device_id
+            TEXT NOT NULL DEFAULT 'samsung'
+            """
+        )
+
         conn.commit()
 
 
+# Initialize database when application starts
 init_db()
 
 
+# ============================================================
+# MESSAGE CLASSIFICATION
+# ============================================================
+
 def classify(sender, body):
+
     t = f"{sender} {body}".lower()
 
     if any(
@@ -125,17 +170,32 @@ def classify(sender, body):
     return "Other"
 
 
-def auth(a):
-    if a != f"Bearer {TOKEN}":
-        raise HTTPException(401, "Invalid API token")
+# ============================================================
+# API AUTHENTICATION
+# ============================================================
 
+def auth(authorization):
+
+    if authorization != f"Bearer {TOKEN}":
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API token",
+        )
+
+
+# ============================================================
+# WEBSOCKET BROADCAST
+# ============================================================
 
 async def broadcast(data):
+
     dead = []
 
     for ws in list(clients):
+
         try:
             await ws.send_json(data)
+
         except Exception:
             dead.append(ws)
 
@@ -143,21 +203,41 @@ async def broadcast(data):
         clients.discard(ws)
 
 
+# ============================================================
+# DASHBOARD
+# ============================================================
+
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return (BASE / "templates" / "dashboard.html").read_text(
+
+    return (
+        BASE / "templates" / "dashboard.html"
+    ).read_text(
         encoding="utf-8"
     )
 
 
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
 @app.get("/api/health")
 def health():
-    return {"status": "online"}
 
+    return {
+        "status": "online"
+    }
+
+
+# ============================================================
+# GET MESSAGES
+# ============================================================
 
 @app.get("/api/messages")
 def messages():
+
     with db() as conn:
+
         rows = conn.execute(
             """
             SELECT
@@ -166,7 +246,8 @@ def messages():
                 body,
                 category,
                 timestamp,
-                is_read
+                is_read,
+                device_id
             FROM messages
             ORDER BY id DESC
             LIMIT 500
@@ -176,23 +257,69 @@ def messages():
     return rows
 
 
+# ============================================================
+# ADD MESSAGE
+# ============================================================
+
 @app.post("/api/messages")
 async def add(
     m: SMSIn,
     authorization: Optional[str] = Header(None),
 ):
+
+    # Authenticate Android bridge
     auth(authorization)
 
-    ts = m.timestamp or datetime.now(timezone.utc).isoformat()
-    cat = classify(m.sender, m.body)
+    # Timestamp
+    ts = (
+        m.timestamp
+        or datetime.now(timezone.utc).isoformat()
+    )
 
+    # Category
+    cat = classify(
+        m.sender,
+        m.body,
+    )
+
+    # Normalize device ID
+    device_id = (
+        m.device_id.strip().lower()
+        if m.device_id
+        else "samsung"
+    )
+
+    # Only allow our known devices
+    if device_id not in ("samsung", "poco"):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid device_id. Use 'samsung' or 'poco'.",
+        )
+
+    # Store in PostgreSQL
     with db() as conn:
+
         row = conn.execute(
             """
             INSERT INTO messages
-                (sender, body, category, timestamp, is_read)
+                (
+                    sender,
+                    body,
+                    category,
+                    timestamp,
+                    is_read,
+                    device_id
+                )
             VALUES
-                (%s, %s, %s, %s, FALSE)
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    FALSE,
+                    %s
+                )
             RETURNING id
             """,
             (
@@ -200,6 +327,7 @@ async def add(
                 m.body,
                 cat,
                 ts,
+                device_id,
             ),
         ).fetchone()
 
@@ -207,6 +335,7 @@ async def add(
 
     mid = row["id"]
 
+    # Response object
     out = {
         "id": mid,
         "sender": m.sender,
@@ -214,8 +343,10 @@ async def add(
         "category": cat,
         "timestamp": ts,
         "is_read": False,
+        "device_id": device_id,
     }
 
+    # Send live update to dashboard
     await broadcast(
         {
             "type": "new_message",
@@ -226,9 +357,15 @@ async def add(
     return out
 
 
+# ============================================================
+# MARK MESSAGE AS READ
+# ============================================================
+
 @app.patch("/api/messages/{mid}/read")
 def read(mid: int):
+
     with db() as conn:
+
         conn.execute(
             """
             UPDATE messages
@@ -237,19 +374,28 @@ def read(mid: int):
             """,
             (mid,),
         )
+
         conn.commit()
 
-    return {"ok": True}
+    return {
+        "ok": True
+    }
 
+
+# ============================================================
+# DELETE MESSAGE
+# ============================================================
 
 @app.delete("/api/messages/{mid}")
 def delete(
     mid: int,
     authorization: Optional[str] = Header(None),
 ):
+
     auth(authorization)
 
     with db() as conn:
+
         conn.execute(
             """
             DELETE FROM messages
@@ -257,27 +403,48 @@ def delete(
             """,
             (mid,),
         )
+
         conn.commit()
 
-    return {"ok": True}
+    return {
+        "ok": True
+    }
 
+
+# ============================================================
+# WEBSOCKET
+# ============================================================
 
 @app.websocket("/ws")
 async def ws(websocket: WebSocket):
+
     await websocket.accept()
+
     clients.add(websocket)
 
     try:
+
         while True:
+
             await websocket.receive_text()
+
     except WebSocketDisconnect:
-        clients.discard(websocket)
-    except Exception:
+
         clients.discard(websocket)
 
+    except Exception:
+
+        clients.discard(websocket)
+
+
+# ============================================================
+# STATIC FILES
+# ============================================================
 
 app.mount(
     "/static",
-    StaticFiles(directory=BASE / "static"),
+    StaticFiles(
+        directory=BASE / "static"
+    ),
     name="static",
 )
