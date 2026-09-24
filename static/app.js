@@ -1,266 +1,145 @@
 let allMessages = [];
-let socket = null;
 
-const state = {
-    phone: "all",
-    smsType: "all",
-    search: ""
-};
+let selectedDevice = "all";
+let selectedCategory = "all";
+let searchText = "";
+
+let socket = null;
+let reconnectTimer = null;
+
+
+// =====================================================
+// DOM ELEMENTS
+// =====================================================
+
+const messagesList = document.getElementById("messagesList");
+const emptyState = document.getElementById("emptyState");
+const visibleCount = document.getElementById("visibleCount");
+
+const searchInput = document.getElementById("searchInput");
+const clearSearch = document.getElementById("clearSearch");
+const refreshButton = document.getElementById("refreshButton");
+
+const connectionDot = document.getElementById("connectionDot");
+const connectionText = document.getElementById("connectionText");
+
+const categoryDescription =
+    document.getElementById("categoryDescription");
+
+
+// =====================================================
+// INITIALIZE
+// =====================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    setupPhoneFilters();
-    setupSmsTypeFilters();
+
+    setupDeviceFilters();
+    setupCategoryFilters();
     setupSearch();
-    setupRefresh();
+
+    if (refreshButton) {
+        refreshButton.addEventListener(
+            "click",
+            loadMessages
+        );
+    }
 
     loadMessages();
     connectWebSocket();
+
 });
 
 
-/* =========================
-   LOAD MESSAGES
-========================= */
+// =====================================================
+// LOAD MESSAGES
+// =====================================================
 
 async function loadMessages() {
+
     try {
-        const response = await fetch("/api/messages", {
-            cache: "no-store"
-        });
+
+        const response = await fetch(
+            "/api/messages",
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
 
         if (!response.ok) {
             throw new Error(
-                `Failed to load messages: HTTP ${response.status}`
+                `Failed to load messages: ${response.status}`
             );
         }
 
         const data = await response.json();
 
-        /*
-         * Support both:
-         *
-         * [...]
-         *
-         * and:
-         *
-         * {
-         *   messages: [...]
-         * }
-         */
-
         if (Array.isArray(data)) {
             allMessages = data;
         } else if (Array.isArray(data.messages)) {
             allMessages = data.messages;
-        } else if (Array.isArray(data.data)) {
-            allMessages = data.data;
         } else {
-            console.error(
-                "Unexpected API response:",
-                data
-            );
-
             allMessages = [];
         }
 
+        sortMessages();
         renderMessages();
 
+        setConnectionStatus(true, "Live");
+
     } catch (error) {
-        console.error(
-            "Could not load messages:",
-            error
-        );
-    }
-}
-
-
-/* =========================
-   WEBSOCKET
-========================= */
-
-function connectWebSocket() {
-
-    if (socket) {
-        try {
-            socket.close();
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    const protocol =
-        window.location.protocol === "https:"
-            ? "wss:"
-            : "ws:";
-
-    const wsUrl =
-        `${protocol}//${window.location.host}/ws`;
-
-    console.log(
-        "Connecting WebSocket:",
-        wsUrl
-    );
-
-    socket = new WebSocket(wsUrl);
-
-    socket.onopen = () => {
-
-        console.log(
-            "WebSocket connected"
-        );
-
-        setLiveStatus(true);
-    };
-
-
-    socket.onmessage = (event) => {
-
-        console.log(
-            "WebSocket event:",
-            event.data
-        );
-
-        try {
-
-            const data =
-                JSON.parse(event.data);
-
-            /*
-             * Support different backend formats.
-             */
-
-            let newMessage = null;
-
-            if (
-                data &&
-                data.message &&
-                typeof data.message === "object"
-            ) {
-                newMessage = data.message;
-            }
-
-            else if (
-                data &&
-                data.data &&
-                typeof data.data === "object"
-            ) {
-                newMessage = data.data;
-            }
-
-            else if (
-                data &&
-                typeof data === "object" &&
-                (
-                    data.body ||
-                    data.sender
-                )
-            ) {
-                newMessage = data;
-            }
-
-
-            if (!newMessage) {
-
-                console.log(
-                    "WebSocket event was not an SMS:",
-                    data
-                );
-
-                return;
-            }
-
-
-            /*
-             * Prevent duplicates.
-             */
-
-            if (
-                newMessage.id !== undefined &&
-                allMessages.some(
-                    message =>
-                        String(message.id) ===
-                        String(newMessage.id)
-                )
-            ) {
-                return;
-            }
-
-
-            /*
-             * Add new message to top.
-             */
-
-            allMessages.unshift(
-                newMessage
-            );
-
-            renderMessages();
-
-
-            /*
-             * Optional browser notification.
-             */
-
-            showNotification(
-                newMessage
-            );
-
-        } catch (error) {
-
-            console.error(
-                "WebSocket JSON error:",
-                error
-            );
-
-        }
-    };
-
-
-    socket.onclose = () => {
-
-        console.log(
-            "WebSocket disconnected."
-        );
-
-        setLiveStatus(false);
-
-        /*
-         * Automatically reconnect.
-         */
-
-        setTimeout(() => {
-
-            connectWebSocket();
-
-        }, 3000);
-    };
-
-
-    socket.onerror = (error) => {
 
         console.error(
-            "WebSocket error:",
+            "Failed to load messages:",
             error
         );
 
-        setLiveStatus(false);
-    };
+        setConnectionStatus(
+            false,
+            "Server error"
+        );
+
+        renderMessages();
+
+    }
+
 }
 
 
-/* =========================
-   PHONE FILTER
-========================= */
+// =====================================================
+// SORT
+// =====================================================
 
-function setupPhoneFilters() {
+function sortMessages() {
 
-    /*
-     * Your UI uses buttons, not select boxes.
-     */
+    allMessages.sort((a, b) => {
+
+        const dateA =
+            new Date(
+                a.timestamp || 0
+            ).getTime();
+
+        const dateB =
+            new Date(
+                b.timestamp || 0
+            ).getTime();
+
+        return dateB - dateA;
+
+    });
+
+}
+
+
+// =====================================================
+// DEVICE FILTER
+// =====================================================
+
+function setupDeviceFilters() {
 
     const buttons =
         document.querySelectorAll(
-            "[data-phone]"
+            "#deviceFilters .filter-btn"
         );
 
     buttons.forEach(button => {
@@ -269,39 +148,35 @@ function setupPhoneFilters() {
             "click",
             () => {
 
-                buttons.forEach(
-                    item =>
-                        item.classList.remove(
-                            "active"
-                        )
-                );
+                selectedDevice =
+                    button.dataset.device || "all";
 
-                button.classList.add(
-                    "active"
-                );
+                buttons.forEach(btn => {
+                    btn.classList.remove("active");
+                });
 
-                state.phone =
-                    (
-                        button.dataset.phone ||
-                        "all"
-                    ).toLowerCase();
+                button.classList.add("active");
 
+                updateCategoryDescription();
                 renderMessages();
+
             }
         );
+
     });
+
 }
 
 
-/* =========================
-   SMS TYPE FILTER
-========================= */
+// =====================================================
+// CATEGORY FILTER
+// =====================================================
 
-function setupSmsTypeFilters() {
+function setupCategoryFilters() {
 
     const buttons =
         document.querySelectorAll(
-            "[data-sms-type]"
+            "#categoryFilters .filter-btn"
         );
 
     buttons.forEach(button => {
@@ -310,46 +185,76 @@ function setupSmsTypeFilters() {
             "click",
             () => {
 
-                buttons.forEach(
-                    item =>
-                        item.classList.remove(
-                            "active"
-                        )
-                );
+                selectedCategory =
+                    button.dataset.category || "all";
 
-                button.classList.add(
-                    "active"
-                );
+                buttons.forEach(btn => {
+                    btn.classList.remove("active");
+                });
 
-                state.smsType =
-                    (
-                        button.dataset.smsType ||
-                        "all"
-                    ).toLowerCase();
+                button.classList.add("active");
 
+                updateCategoryDescription();
                 renderMessages();
+
             }
         );
+
     });
+
 }
 
 
-/* =========================
-   SEARCH
-========================= */
+// =====================================================
+// CATEGORY DESCRIPTION
+// =====================================================
+
+function updateCategoryDescription() {
+
+    if (!categoryDescription) {
+        return;
+    }
+
+    if (selectedCategory === "all") {
+
+        if (selectedDevice === "all") {
+
+            categoryDescription.textContent =
+                "Showing all SMS messages";
+
+        } else {
+
+            categoryDescription.textContent =
+                `Showing all SMS from ${formatDeviceName(selectedDevice)}`;
+
+        }
+
+        return;
+    }
+
+
+    if (selectedDevice === "all") {
+
+        categoryDescription.textContent =
+            `Showing ${selectedCategory} messages from all phones`;
+
+    } else {
+
+        categoryDescription.textContent =
+            `Showing ${selectedCategory} messages from ${formatDeviceName(selectedDevice)}`;
+
+    }
+
+}
+
+
+// =====================================================
+// SEARCH
+// =====================================================
 
 function setupSearch() {
 
-    const searchInput =
-        document.querySelector(
-            "#searchInput"
-        );
-
     if (!searchInput) {
-        console.warn(
-            "Search input not found"
-        );
-
         return;
     }
 
@@ -357,399 +262,385 @@ function setupSearch() {
         "input",
         () => {
 
-            state.search =
+            searchText =
                 searchInput.value
                     .trim()
                     .toLowerCase();
 
+            updateClearButton();
             renderMessages();
+
         }
     );
+
+
+    if (clearSearch) {
+
+        clearSearch.addEventListener(
+            "click",
+            () => {
+
+                searchInput.value = "";
+                searchText = "";
+
+                updateClearButton();
+                renderMessages();
+
+                searchInput.focus();
+
+            }
+        );
+
+    }
+
+    updateClearButton();
+
 }
 
 
-/* =========================
-   REFRESH BUTTON
-========================= */
+// =====================================================
+// SEARCH CLEAR BUTTON
+// =====================================================
 
-function setupRefresh() {
+function updateClearButton() {
 
-    const button =
-        document.querySelector(
-            "#refreshBtn"
-        );
-
-    if (!button) {
-        console.warn(
-            "Refresh button not found"
-        );
-
+    if (!clearSearch) {
         return;
     }
 
-    button.addEventListener(
-        "click",
-        async () => {
+    if (
+        searchInput &&
+        searchInput.value.length > 0
+    ) {
 
-            button.disabled = true;
+        clearSearch.style.display = "flex";
 
-            await loadMessages();
+    } else {
 
-            button.disabled = false;
-        }
-    );
+        clearSearch.style.display = "none";
+
+    }
+
 }
 
 
-/* =========================
-   RENDER
-========================= */
+// =====================================================
+// FILTER MESSAGES
+// =====================================================
+
+function getFilteredMessages() {
+
+    return allMessages.filter(message => {
+
+        // DEVICE
+
+        if (
+            selectedDevice !== "all" &&
+            String(
+                message.device_id || ""
+            ).toLowerCase() !==
+            selectedDevice.toLowerCase()
+        ) {
+            return false;
+        }
+
+
+        // CATEGORY
+
+        if (
+            selectedCategory !== "all" &&
+            String(
+                message.category || ""
+            ).toLowerCase() !==
+            selectedCategory.toLowerCase()
+        ) {
+            return false;
+        }
+
+
+        // SEARCH
+
+        if (searchText) {
+
+            const sender =
+                String(
+                    message.sender || ""
+                ).toLowerCase();
+
+            const body =
+                String(
+                    message.body || ""
+                ).toLowerCase();
+
+            const category =
+                String(
+                    message.category || ""
+                ).toLowerCase();
+
+            const device =
+                String(
+                    message.device_id || ""
+                ).toLowerCase();
+
+
+            const matches =
+                sender.includes(searchText) ||
+                body.includes(searchText) ||
+                category.includes(searchText) ||
+                device.includes(searchText);
+
+
+            if (!matches) {
+                return false;
+            }
+
+        }
+
+
+        return true;
+
+    });
+
+}
+
+
+// =====================================================
+// RENDER
+// =====================================================
 
 function renderMessages() {
 
-    /*
-     * Try the existing message container.
-     */
-
-    const container =
-        document.querySelector(
-            "#messages"
-        ) ||
-        document.querySelector(
-            "#messageList"
-        ) ||
-        document.querySelector(
-            ".messages-list"
-        );
-
-    if (!container) {
-
-        console.error(
-            "Message container not found"
-        );
-
+    if (!messagesList) {
         return;
     }
 
-
-    const filtered =
-        allMessages.filter(
-            message => {
-
-                const phone =
-                    getPhone(message);
-
-                const type =
-                    getSmsType(message);
+    const filteredMessages =
+        getFilteredMessages();
 
 
-                const matchesPhone =
-                    state.phone === "all" ||
-                    phone === state.phone;
+    messagesList.innerHTML = "";
 
 
-                const matchesType =
-                    state.smsType === "all" ||
-                    type === state.smsType;
+    // COUNT
+
+    if (visibleCount) {
+
+        const count =
+            filteredMessages.length;
+
+        visibleCount.textContent =
+            `${count} ${
+                count === 1
+                    ? "message"
+                    : "messages"
+            }`;
+
+    }
 
 
-                const sender =
-                    String(
-                        message.sender || ""
-                    ).toLowerCase();
+    // EMPTY
+
+    if (filteredMessages.length === 0) {
+
+        if (emptyState) {
+            emptyState.style.display = "block";
+        }
+
+        return;
+
+    }
 
 
-                const body =
-                    String(
-                        message.body || ""
-                    ).toLowerCase();
+    if (emptyState) {
+        emptyState.style.display = "none";
+    }
 
 
-                const matchesSearch =
-                    !state.search ||
-                    sender.includes(
-                        state.search
-                    ) ||
-                    body.includes(
-                        state.search
-                    );
+    // CARDS
+
+    filteredMessages.forEach(message => {
+
+        const card =
+            createMessageCard(message);
+
+        messagesList.appendChild(card);
+
+    });
+
+}
 
 
-                return (
-                    matchesPhone &&
-                    matchesType &&
-                    matchesSearch
-                );
+// =====================================================
+// MESSAGE CARD
+// =====================================================
+
+function createMessageCard(message) {
+
+    const card =
+        document.createElement("article");
+
+    card.className = "message-card";
+
+
+    if (message.is_read) {
+        card.classList.add("read");
+    } else {
+        card.classList.add("unread");
+    }
+
+
+    // TOP
+
+    const topRow =
+        document.createElement("div");
+
+    topRow.className =
+        "message-top";
+
+
+    // SENDER
+
+    const sender =
+        document.createElement("div");
+
+    sender.className =
+        "message-sender";
+
+    sender.textContent =
+        message.sender || "Unknown";
+
+
+    // BADGES
+
+    const badges =
+        document.createElement("div");
+
+    badges.className =
+        "message-badges";
+
+
+    // DEVICE BADGE
+
+    const deviceBadge =
+        document.createElement("span");
+
+    deviceBadge.className =
+        "device-badge " +
+        String(
+            message.device_id || "samsung"
+        ).toLowerCase();
+
+    deviceBadge.textContent =
+        formatDeviceName(
+            message.device_id || "samsung"
+        );
+
+
+    // CATEGORY BADGE
+
+    const categoryBadge =
+        document.createElement("span");
+
+    categoryBadge.className =
+        "category-badge";
+
+    categoryBadge.textContent =
+        message.category || "Other";
+
+
+    badges.appendChild(deviceBadge);
+    badges.appendChild(categoryBadge);
+
+
+    topRow.appendChild(sender);
+    topRow.appendChild(badges);
+
+
+    // TIME
+
+    const time =
+        document.createElement("div");
+
+    time.className =
+        "message-time";
+
+    time.textContent =
+        formatTimestamp(
+            message.timestamp
+        );
+
+
+    // BODY
+
+    const body =
+        document.createElement("div");
+
+    body.className =
+        "message-body";
+
+    body.textContent =
+        message.body || "";
+
+
+    // ACTIONS
+
+    const actions =
+        document.createElement("div");
+
+    actions.className =
+        "message-actions";
+
+
+    // ONLY MARK AS READ
+    // DELETE HAS BEEN REMOVED
+
+    if (!message.is_read) {
+
+        const readButton =
+            document.createElement("button");
+
+        readButton.type = "button";
+
+        readButton.className =
+            "message-action";
+
+        readButton.textContent =
+            "Mark as read";
+
+
+        readButton.addEventListener(
+            "click",
+            () => {
+                markAsRead(message.id);
             }
         );
 
 
-    /*
-     * Update message count.
-     */
+        actions.appendChild(readButton);
 
-    updateMessageCount(
-        filtered.length
-    );
-
-
-    if (filtered.length === 0) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-                No messages found
-            </div>
-        `;
-
-        return;
     }
 
 
-    container.innerHTML =
-        filtered
-            .map(
-                message =>
-                    createMessageCard(
-                        message
-                    )
-            )
-            .join("");
+    // BUILD
+
+    card.appendChild(topRow);
+    card.appendChild(time);
+    card.appendChild(body);
+
+
+    if (actions.children.length > 0) {
+        card.appendChild(actions);
+    }
+
+
+    return card;
+
 }
 
 
-/* =========================
-   MESSAGE CARD
-========================= */
-
-function createMessageCard(
-    message
-) {
-
-    const sender =
-        escapeHtml(
-            message.sender ||
-            "Unknown"
-        );
-
-
-    const body =
-        escapeHtml(
-            message.body ||
-            ""
-        );
-
-
-    const time =
-        formatDate(
-            message.timestamp ||
-            message.created_at
-        );
-
-
-    const phone =
-        getPhone(message);
-
-
-    const phoneLabel =
-        phone === "poco"
-            ? "POCO"
-            : "SAMSUNG";
-
-
-    const type =
-        getSmsType(message);
-
-
-    const typeLabel =
-        type.charAt(0).toUpperCase() +
-        type.slice(1);
-
-
-    const id =
-        message.id;
-
-
-    const isRead =
-        message.is_read === true ||
-        message.read === true;
-
-
-    return `
-        <div
-            class="message-card ${
-                isRead ? "read" : "unread"
-            }"
-            data-id="${escapeHtml(
-                String(id || "")
-            )}"
-        >
-
-            <div class="message-header">
-
-                <div class="message-sender">
-                    ${sender}
-                </div>
-
-                <div class="message-badges">
-
-                    <span
-                        class="device-badge ${phone}"
-                    >
-                        ${phoneLabel}
-                    </span>
-
-                    <span
-                        class="type-badge ${type}"
-                    >
-                        ${escapeHtml(
-                            typeLabel
-                        )}
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <div class="message-time">
-                ${escapeHtml(time)}
-            </div>
-
-
-            <div class="message-body">
-                ${body}
-            </div>
-
-
-            <div class="message-actions">
-
-                ${
-                    !isRead && id
-                        ? `
-                            <button
-                                class="read-btn"
-                                onclick="markAsRead(${Number(id)})"
-                            >
-                                Mark as read
-                            </button>
-                          `
-                        : ""
-                }
-
-            </div>
-
-        </div>
-    `;
-}
-
-
-/* =========================
-   DEVICE
-========================= */
-
-function getPhone(message) {
-
-    const value =
-        String(
-            message.device_id ||
-            message.device ||
-            "samsung"
-        ).toLowerCase();
-
-
-    if (
-        value.includes("poco") ||
-        value.includes("xiaomi") ||
-        value.includes("redmi")
-    ) {
-        return "poco";
-    }
-
-
-    return "samsung";
-}
-
-
-/* =========================
-   SMS TYPE
-========================= */
-
-function getSmsType(message) {
-
-    const existing =
-        message.sms_type ||
-        message.type;
-
-
-    if (existing) {
-
-        return String(
-            existing
-        ).toLowerCase();
-    }
-
-
-    return detectSmsType(
-        message.sender,
-        message.body
-    );
-}
-
-
-function detectSmsType(
-    sender,
-    body
-) {
-
-    const text =
-        `${sender || ""} ${
-            body || ""
-        }`.toLowerCase();
-
-
-    if (
-        /\botp\b|one.?time|verification|verify|passcode|login code|authentication/.test(
-            text
-        )
-    ) {
-        return "otp";
-    }
-
-
-    if (
-        /bank|credited|debited|transaction|account|upi|payment|withdrawal|balance/.test(
-            text
-        )
-    ) {
-        return "banking";
-    }
-
-
-    if (
-        /delivery|delivered|shipment|order|package|parcel|out for delivery/.test(
-            text
-        )
-    ) {
-        return "delivery";
-    }
-
-
-    if (
-        /office|work|meeting|employee|company|hr|attendance/.test(
-            text
-        )
-    ) {
-        return "work";
-    }
-
-
-    return "other";
-}
-
-
-/* =========================
-   MARK AS READ
-========================= */
+// =====================================================
+// MARK AS READ
+// =====================================================
 
 async function markAsRead(id) {
 
@@ -766,11 +657,10 @@ async function markAsRead(id) {
 
         if (!response.ok) {
 
-            console.error(
-                "Could not mark message as read"
+            throw new Error(
+                `Failed to mark message as read: ${response.status}`
             );
 
-            return;
         }
 
 
@@ -783,198 +673,241 @@ async function markAsRead(id) {
 
 
         if (message) {
-
             message.is_read = true;
-            message.read = true;
         }
 
 
         renderMessages();
 
+
     } catch (error) {
 
         console.error(
-            "Mark as read error:",
+            "Mark as read failed:",
             error
         );
+
+        alert(
+            "Unable to mark this message as read."
+        );
+
     }
+
 }
 
 
-/* =========================
-   MESSAGE COUNT
-========================= */
+// =====================================================
+// WEBSOCKET
+// =====================================================
 
-function updateMessageCount(
-    count
-) {
-
-    const elements =
-        document.querySelectorAll(
-            ".message-count"
-        );
-
-
-    elements.forEach(
-        element => {
-
-            element.textContent =
-                `${count} messages`;
-        }
-    );
-
-
-    /*
-     * Also support the current
-     * dashboard structure if it
-     * uses a plain count element.
-     */
-
-    const countElement =
-        document.querySelector(
-            "#messageCount"
-        );
-
-
-    if (countElement) {
-
-        countElement.textContent =
-            `${count} messages`;
-    }
-}
-
-
-/* =========================
-   LIVE STATUS
-========================= */
-
-function setLiveStatus(
-    connected
-) {
-
-    const elements =
-        document.querySelectorAll(
-            ".live-status"
-        );
-
-
-    elements.forEach(
-        element => {
-
-            if (connected) {
-
-                element.textContent =
-                    "● Live";
-
-                element.classList.add(
-                    "connected"
-                );
-
-                element.classList.remove(
-                    "disconnected"
-                );
-
-            } else {
-
-                element.textContent =
-                    "● Reconnecting...";
-
-                element.classList.remove(
-                    "connected"
-                );
-
-                element.classList.add(
-                    "disconnected"
-                );
-            }
-        }
-    );
-
-
-    /*
-     * Fallback for the existing
-     * Live indicator.
-     */
-
-    const live =
-        document.querySelector(
-            "#liveStatus"
-        );
-
-
-    if (live) {
-
-        live.textContent =
-            connected
-                ? "● Live"
-                : "● Reconnecting...";
-    }
-}
-
-
-/* =========================
-   NOTIFICATION
-========================= */
-
-function showNotification(
-    message
-) {
-
-    if (
-        !("Notification" in window)
-    ) {
-        return;
-    }
-
-
-    if (
-        Notification.permission !==
-        "granted"
-    ) {
-        return;
-    }
-
+function connectWebSocket() {
 
     try {
 
-        new Notification(
-            `New SMS from ${
-                message.sender ||
-                "Unknown"
-            }`,
-            {
-                body:
-                    String(
-                        message.body || ""
-                    ).substring(0, 150)
+        const protocol =
+            window.location.protocol === "https:"
+                ? "wss:"
+                : "ws:";
+
+
+        const wsUrl =
+            `${protocol}//${window.location.host}/ws`;
+
+
+        socket =
+            new WebSocket(wsUrl);
+
+
+        socket.onopen = () => {
+
+            console.log(
+                "WebSocket connected"
+            );
+
+            setConnectionStatus(
+                true,
+                "Live"
+            );
+
+        };
+
+
+        socket.onmessage = event => {
+
+            try {
+
+                const message =
+                    JSON.parse(
+                        event.data
+                    );
+
+
+                if (
+                    !message ||
+                    typeof message !== "object"
+                ) {
+                    return;
+                }
+
+
+                const exists =
+                    allMessages.some(
+                        item =>
+                            String(item.id) ===
+                            String(message.id)
+                    );
+
+
+                if (!exists) {
+
+                    allMessages.unshift(
+                        message
+                    );
+
+                    sortMessages();
+                    renderMessages();
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "WebSocket message error:",
+                    error
+                );
+
             }
-        );
+
+        };
+
+
+        socket.onerror = error => {
+
+            console.error(
+                "WebSocket error:",
+                error
+            );
+
+            setConnectionStatus(
+                false,
+                "Offline"
+            );
+
+        };
+
+
+        socket.onclose = () => {
+
+            setConnectionStatus(
+                false,
+                "Reconnecting..."
+            );
+
+
+            clearTimeout(
+                reconnectTimer
+            );
+
+
+            reconnectTimer =
+                setTimeout(
+                    connectWebSocket,
+                    3000
+                );
+
+        };
+
 
     } catch (error) {
 
-        console.log(
-            "Notification error:",
+        console.error(
+            "WebSocket connection failed:",
             error
         );
+
+        setConnectionStatus(
+            false,
+            "Offline"
+        );
+
     }
+
 }
 
 
-/* =========================
-   DATE
-========================= */
+// =====================================================
+// CONNECTION STATUS
+// =====================================================
 
-function formatDate(
-    value
+function setConnectionStatus(
+    connected,
+    text
 ) {
 
-    if (!value) {
+    if (connectionDot) {
+
+        connectionDot.classList.toggle(
+            "connected",
+            connected
+        );
+
+        connectionDot.classList.toggle(
+            "disconnected",
+            !connected
+        );
+
+    }
+
+
+    if (connectionText) {
+
+        connectionText.textContent =
+            text;
+
+    }
+
+}
+
+
+// =====================================================
+// DEVICE NAME
+// =====================================================
+
+function formatDeviceName(device) {
+
+    const value =
+        String(device || "")
+            .toLowerCase();
+
+
+    if (value === "samsung") {
+        return "Samsung";
+    }
+
+
+    if (value === "poco") {
+        return "Poco";
+    }
+
+
+    return device || "Unknown";
+
+}
+
+
+// =====================================================
+// TIMESTAMP
+// =====================================================
+
+function formatTimestamp(timestamp) {
+
+    if (!timestamp) {
         return "";
     }
 
 
     const date =
-        new Date(value);
+        new Date(timestamp);
 
 
     if (
@@ -982,12 +915,12 @@ function formatDate(
             date.getTime()
         )
     ) {
-        return String(value);
+        return String(timestamp);
     }
 
 
     return date.toLocaleString(
-        "en-IN",
+        undefined,
         {
             day: "2-digit",
             month: "short",
@@ -996,36 +929,8 @@ function formatDate(
             minute: "2-digit"
         }
     );
+
 }
 
-
-/* =========================
-   HTML ESCAPE
-========================= */
-
-function escapeHtml(
-    value
-) {
-
-    return String(value)
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-}
+// Automatically check for new SMS every 3 seconds
+setInterval(() => { loadMessages(); }, 3000);
