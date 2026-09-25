@@ -1,42 +1,65 @@
-# SMS Dashboard — Python Only
+# 📱 SMS Dashboard
 
-Free local web dashboard: Python/FastAPI + SQLite + HTML/CSS/JS + WebSocket.
-No Bluehost or paid hosting required.
+A centralized internal SMS management dashboard that collects SMS messages from multiple Android devices and displays them in a single web interface.
 
-## Run on Windows
+The system was built to solve the operational problem of employees having to physically access shared company phones whenever an OTP or important SMS was received.
 
-```powershell
-cd sms-dashboard-python
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-```
+---
 
-Edit `.env` and set:
+## 🚀 Overview
+
+The SMS Dashboard connects Android phones to a cloud-based backend.
+
+When an SMS arrives on a registered phone:
+
+1. The Android Bridge detects the incoming SMS.
+2. The message is sent to the FastAPI backend through HTTPS.
+3. The backend stores the message in PostgreSQL.
+4. The dashboard retrieves and displays the message.
+5. New messages can appear automatically without manually refreshing the dashboard.
+
+The system currently supports:
+
+- Samsung devices
+- Poco/Xiaomi devices
+- Multiple devices
+- OTP messages
+- Banking messages
+- Delivery/order messages
+- Other SMS messages
+
+---
+
+## 🏗️ Architecture
 
 ```text
-API_TOKEN=your-long-random-secret
-```
-
-Start:
-
-```powershell
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-Open:
-
-```text
-http://localhost:8000
-```
-
-Test:
-
-```powershell
-python send_test.py
-```
-
-The dashboard is ready. The Samsung A54 still needs a small Android notification bridge because a browser/Python server cannot directly read Android SMS. The bridge will POST each message to `/api/messages` with `Authorization: Bearer YOUR_API_TOKEN`.
-
-For a free local setup, keep phone and laptop on the same Wi-Fi. Do not expose port 8000 directly to the public internet.
+                 ┌─────────────────────┐
+                 │   Samsung Phone     │
+                 │   SMS Bridge App    │
+                 └──────────┬──────────┘
+                            │
+                            │ HTTPS
+                            ▼
+                 ┌─────────────────────┐
+                 │    Poco Phone       │
+                 │   SMS Bridge App    │
+                 └──────────┬──────────┘
+                            │
+                            │ HTTPS
+                            ▼
+                 ┌─────────────────────┐
+                 │   FastAPI Backend   │
+                 │       Vercel        │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │  Neon PostgreSQL    │
+                 │      Database       │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │   Web Dashboard     │
+                 │       Vercel        │
+                 └─────────────────────┘
