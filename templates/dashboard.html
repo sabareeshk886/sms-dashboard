@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -17,202 +18,478 @@
     <title>SMS Dashboard</title>
 
     <link
+        rel="icon"
+        type="image/svg+xml"
+        href="/static/favicon.svg"
+    >
+
+    <link
         rel="stylesheet"
         href="/static/style.css"
     >
+
+    <style>
+
+        /* ==========================================
+           AUTH SCREEN
+        =========================================== */
+
+        #authScreen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f7;
+            z-index: 9999;
+        }
+
+        .auth-card {
+            width: min(420px, calc(100% - 40px));
+            padding: 42px 36px;
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+        }
+
+        .auth-logo {
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 22px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #111111;
+            color: #ffffff;
+
+            border-radius: 16px;
+
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .auth-card h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+            color: #111111;
+        }
+
+        .auth-card p {
+            margin: 0 0 28px;
+            color: #777777;
+            font-size: 15px;
+        }
+
+        .google-signin-button {
+            width: 100%;
+            min-height: 46px;
+
+            border: 1px solid #d5d5d5;
+            border-radius: 9px;
+
+            background: #ffffff;
+            color: #222222;
+
+            font-size: 15px;
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition:
+                background 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+
+        .google-signin-button:hover {
+            background: #f7f7f7;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .auth-error {
+            display: none;
+
+            margin-top: 18px;
+            padding: 12px 14px;
+
+            border-radius: 8px;
+
+            background: #fff1f1;
+            color: #b42318;
+
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+
+        /* ==========================================
+           AUTH USER AREA
+        =========================================== */
+
+        #userInfo {
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #userEmail {
+            font-size: 14px;
+            color: #555555;
+        }
+
+        .auth-button {
+            border: 1px solid #d5d5d5;
+            border-radius: 8px;
+
+            background: #ffffff;
+            color: #222222;
+
+            padding: 8px 13px;
+
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .auth-button:hover {
+            background: #f5f5f5;
+        }
+
+
+        /* ==========================================
+           MOBILE
+        =========================================== */
+
+        @media (max-width: 700px) {
+
+            .auth-card {
+                padding: 34px 24px;
+            }
+
+            #userInfo {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+
+            #userEmail {
+                display: none;
+            }
+
+        }
+
+    </style>
+
 </head>
 
 
 <body>
 
-    <div class="dashboard">
 
-        <!-- ==========================================
-             HEADER
-        =========================================== -->
+    <!-- =================================================
+         AUTH SCREEN
 
-        <header class="topbar">
+         This is the ONLY thing visible before login.
+    ================================================== -->
 
-            <div class="brand">
+    <div id="authScreen">
 
-                <div class="brand-icon">
-                    SMS
-                </div>
+        <div class="auth-card">
 
-                <div class="brand-text">
-
-                    <h1>
-                        SMS Dashboard
-                    </h1>
-
-                    <p>
-                        Manage messages from your devices
-                    </p>
-
-                </div>
-
+            <div class="auth-logo">
+                SMS
             </div>
 
+            <h1>
+                SMS Dashboard
+            </h1>
 
-            <div class="connection-status">
+            <p>
+                Sign in with your faff Google account to continue.
+            </p>
 
-                <span
-                    id="connectionDot"
-                    class="status-dot connected"
-                ></span>
+            <button
+                id="googleSignInBtn"
+                type="button"
+                class="google-signin-button"
+            >
+                Sign in with Google
+            </button>
 
-                <span id="connectionText">
-                    Live
-                </span>
+            <div
+                id="authError"
+                class="auth-error"
+            ></div>
 
-            </div>
+        </div>
 
-        </header>
-
-
-        <!-- ==========================================
-             FILTER BAR
-        =========================================== -->
-
-        <section class="filter-bar">
-
-
-            <!-- PHONE -->
-
-            <div class="filter-group phone-group">
-
-                <h2>
-                    Phone
-                </h2>
+    </div>
 
 
-                <div
-                    id="deviceFilters"
-                    class="filter-buttons"
+    <!-- =================================================
+         DASHBOARD
+
+         Completely hidden until successful authentication.
+    ================================================== -->
+
+    <div
+        id="dashboardContent"
+        style="display: none;"
+    >
+
+        <div class="dashboard">
+
+
+            <!-- ==========================================
+                 HEADER
+            =========================================== -->
+
+            <header class="topbar">
+
+                <div class="brand">
+
+                    <div class="brand-icon">
+                        SMS
+                    </div>
+
+                    <div class="brand-text">
+
+                        <h1>
+                            SMS Dashboard
+                        </h1>
+
+                        <p>
+                            Manage messages from your devices
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="connection-status">
+
+                    <span
+                        id="connectionDot"
+                        class="status-dot connected"
+                    ></span>
+
+                    <span id="connectionText">
+                        Connecting...
+                    </span>
+
+                </div>
+
+
+                <!-- USER INFO -->
+
+                <div id="userInfo">
+
+                    <span id="userEmail"></span>
+
+                    <button
+                        id="googleSignOutBtn"
+                        type="button"
+                        class="auth-button"
+                    >
+                        Sign out
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <!-- ==========================================
+                 FILTER BAR
+            =========================================== -->
+
+            <section class="filter-bar">
+
+
+                <!-- PHONE -->
+
+                <div class="filter-group phone-group">
+
+                    <h2>
+                        Phone
+                    </h2>
+
+
+                    <div
+                        id="deviceFilters"
+                        class="filter-buttons"
+                    >
+
+                        <button
+                            type="button"
+                            class="filter-btn active"
+                            data-device="all"
+                        >
+                            All Phones
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-device="samsung"
+                        >
+                            Samsung
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-device="poco"
+                        >
+                            Poco
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="filter-divider"></div>
+
+
+                <!-- SMS TYPE -->
+
+                <div class="filter-group sms-type-group">
+
+                    <h2>
+                        SMS Type
+                    </h2>
+
+
+                    <div
+                        id="categoryFilters"
+                        class="filter-buttons"
+                    >
+
+                        <button
+                            type="button"
+                            class="filter-btn active"
+                            data-category="all"
+                        >
+                            All SMS
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-category="OTP"
+                        >
+                            OTP
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-category="Banking"
+                        >
+                            Banking
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-category="Delivery"
+                        >
+                            Delivery
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="filter-btn"
+                            data-category="Other"
+                        >
+                            Other
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 SEARCH BAR
+            =========================================== -->
+
+            <section class="toolbar">
+
+                <div class="search-wrapper">
+
+                    <span class="search-icon">
+
+                        <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+
+                            <circle
+                                cx="11"
+                                cy="11"
+                                r="7"
+                            ></circle>
+
+                            <line
+                                x1="16.5"
+                                y1="16.5"
+                                x2="21"
+                                y2="21"
+                            ></line>
+
+                        </svg>
+
+                    </span>
+
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search sender or message..."
+                        autocomplete="off"
+                    >
+
+
+                    <button
+                        type="button"
+                        id="clearSearch"
+                        class="clear-search"
+                        aria-label="Clear search"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="refreshButton"
+                    class="refresh-button"
                 >
 
-                    <button
-                        type="button"
-                        class="filter-btn active"
-                        data-device="all"
-                    >
-                        All Phones
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-device="samsung"
-                    >
-                        Samsung
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-device="poco"
-                    >
-                        Poco
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <!-- DIVIDER -->
-
-            <div class="filter-divider"></div>
-
-
-            <!-- SMS TYPE -->
-
-            <div class="filter-group sms-type-group">
-
-                <h2>
-                    SMS Type
-                </h2>
-
-
-                <div
-                    id="categoryFilters"
-                    class="filter-buttons"
-                >
-
-                    <button
-                        type="button"
-                        class="filter-btn active"
-                        data-category="all"
-                    >
-                        All SMS
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-category="OTP"
-                    >
-                        OTP
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-category="Banking"
-                    >
-                        Banking
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-category="Delivery"
-                    >
-                        Delivery
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-category="Work"
-                    >
-                        Work
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-category="Other"
-                    >
-                        Other
-                    </button>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- ==========================================
-             SEARCH BAR
-        =========================================== -->
-
-        <section class="toolbar">
-
-            <div class="search-wrapper">
-
-                <span class="search-icon">
                     <svg
-                        width="22"
-                        height="22"
+                        width="20"
+                        height="20"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -220,164 +497,118 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     >
-                        <circle
-                            cx="11"
-                            cy="11"
-                            r="7"
-                        ></circle>
 
-                        <line
-                            x1="16.5"
-                            y1="16.5"
-                            x2="21"
-                            y2="21"
-                        ></line>
+                        <path
+                            d="M21 12a9 9 0 0 1-15.3 6.5"
+                        ></path>
+
+                        <path
+                            d="M3 12a9 9 0 0 1 15.3-6.5"
+                        ></path>
+
+                        <polyline
+                            points="21 3 21 9 15 9"
+                        ></polyline>
+
+                        <polyline
+                            points="3 21 3 15 9 15"
+                        ></polyline>
+
                     </svg>
-                </span>
 
+                    <span>
+                        Refresh
+                    </span>
 
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="Search sender or message..."
-                    autocomplete="off"
-                >
-
-
-                <button
-                    type="button"
-                    id="clearSearch"
-                    class="clear-search"
-                    aria-label="Clear search"
-                >
-                    ×
                 </button>
 
+            </section>
+
+
+            <!-- ==========================================
+                 CATEGORY DESCRIPTION
+            =========================================== -->
+
+            <div
+                id="categoryDescription"
+                class="category-description"
+            >
+                Showing all SMS messages
             </div>
 
 
-            <button
-                type="button"
-                id="refreshButton"
-                class="refresh-button"
+            <!-- ==========================================
+                 MESSAGES HEADER
+            =========================================== -->
+
+            <section class="messages-header">
+
+                <div>
+
+                    <h2>
+                        Messages
+                    </h2>
+
+                    <span id="visibleCount">
+                        0 messages
+                    </span>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 MESSAGE LIST
+            =========================================== -->
+
+            <main
+                id="messagesList"
+                class="messages-list"
+            >
+            </main>
+
+
+            <!-- ==========================================
+                 EMPTY STATE
+            =========================================== -->
+
+            <section
+                id="emptyState"
+                class="empty-state"
+                style="display: none;"
             >
 
-                <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path
-                        d="M21 12a9 9 0 0 1-15.3 6.5"
-                    ></path>
-
-                    <path
-                        d="M3 12a9 9 0 0 1 15.3-6.5"
-                    ></path>
-
-                    <polyline
-                        points="21 3 21 9 15 9"
-                    ></polyline>
-
-                    <polyline
-                        points="3 21 3 15 9 15"
-                    ></polyline>
-                </svg>
-
-                <span>
-                    Refresh
-                </span>
-
-            </button>
-
-        </section>
+                <div class="empty-icon">
+                    ✉
+                </div>
 
 
-        <!-- ==========================================
-             CATEGORY DESCRIPTION
-        =========================================== -->
+                <h3>
+                    No messages found
+                </h3>
 
-        <div
-            id="categoryDescription"
-            class="category-description"
-        >
-            Showing all SMS messages
+
+                <p>
+                    There are no SMS messages matching
+                    your current filters.
+                </p>
+
+            </section>
+
         </div>
-
-
-        <!-- ==========================================
-             MESSAGES HEADER
-        =========================================== -->
-
-        <section class="messages-header">
-
-            <div>
-
-                <h2>
-                    Messages
-                </h2>
-
-                <span id="visibleCount">
-                    0 messages
-                </span>
-
-            </div>
-
-        </section>
-
-
-        <!-- ==========================================
-             MESSAGE LIST
-        =========================================== -->
-
-        <main
-            id="messagesList"
-            class="messages-list"
-        >
-
-        </main>
-
-
-        <!-- ==========================================
-             EMPTY STATE
-        =========================================== -->
-
-        <section
-            id="emptyState"
-            class="empty-state"
-            style="display: none;"
-        >
-
-            <div class="empty-icon">
-                ✉
-            </div>
-
-
-            <h3>
-                No messages found
-            </h3>
-
-
-            <p>
-                There are no SMS messages matching
-                your current filters.
-            </p>
-
-        </section>
 
     </div>
 
 
-    <!-- ==========================================
+    <!-- =================================================
          JAVASCRIPT
-    =========================================== -->
+    ================================================== -->
 
-    <script src="/static/app.js"></script>
+    <script
+        type="module"
+        src="/static/app.js"
+    ></script>
 
 </body>
 
