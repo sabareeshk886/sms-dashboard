@@ -1,4 +1,4 @@
-# 📱 SMS Dashboard
+# SMS Dashboard
 
 A centralized internal SMS management dashboard that collects SMS messages from multiple Android devices and displays them in a single web interface.
 
@@ -6,7 +6,7 @@ The system was built to solve the operational problem of employees having to phy
 
 ---
 
-## 🚀 Overview
+## Overview
 
 The SMS Dashboard connects Android phones to a cloud-based backend.
 
@@ -30,7 +30,7 @@ The system currently supports:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
                  ┌─────────────────────┐
