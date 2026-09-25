@@ -1,7 +1,3 @@
-// =====================================================
-// FIREBASE
-// =====================================================
-
 import firebaseConfig from "./config.js";
 
 import {
@@ -17,21 +13,28 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 
-const firebaseApp =
-    initializeApp(firebaseConfig);
+// =====================================================
+// FIREBASE
+// =====================================================
 
-const auth =
-    getAuth(firebaseApp);
+const firebaseApp = initializeApp(firebaseConfig);
 
-const googleProvider =
-    new GoogleAuthProvider();
+const auth = getAuth(firebaseApp);
+
+const googleProvider = new GoogleAuthProvider();
+
+googleProvider.setCustomParameters({
+    prompt: "select_account"
+});
 
 
 // =====================================================
-// GLOBAL STATE
+// STATE
 // =====================================================
 
 let firebaseUser = null;
+
+let authRejectionMessage = "";
 
 let allMessages = [];
 
@@ -45,9 +48,11 @@ let socket = null;
 
 let reconnectTimer = null;
 
+let pollingTimer = null;
+
 
 // =====================================================
-// DOM ELEMENTS
+// DOM
 // =====================================================
 
 const authScreen =
@@ -55,6 +60,9 @@ const authScreen =
 
 const dashboardContent =
     document.getElementById("dashboardContent");
+
+const authError =
+    document.getElementById("authError");
 
 const googleSignInBtn =
     document.getElementById("googleSignInBtn");
@@ -68,10 +76,6 @@ const userInfo =
 const userEmail =
     document.getElementById("userEmail");
 
-const authError =
-    document.getElementById("authError");
-
-
 const messagesList =
     document.getElementById("messagesList");
 
@@ -80,7 +84,6 @@ const emptyState =
 
 const visibleCount =
     document.getElementById("visibleCount");
-
 
 const searchInput =
     document.getElementById("searchInput");
@@ -91,36 +94,496 @@ const clearSearch =
 const refreshButton =
     document.getElementById("refreshButton");
 
-
 const connectionDot =
     document.getElementById("connectionDot");
 
 const connectionText =
     document.getElementById("connectionText");
 
-
 const categoryDescription =
     document.getElementById("categoryDescription");
 
 
 // =====================================================
-// FIREBASE AUTH TOKEN
+// AUTH SCREEN
 // =====================================================
 
-async function getAuthToken() {
+function showAuthScreen(message = "") {
 
-    if (!firebaseUser) {
-        throw new Error("Authentication required");
+    if (authScreen) {
+        authScreen.style.display = "flex";
     }
 
-    return await firebaseUser.getIdToken();
+    if (dashboardContent) {
+        dashboardContent.style.display = "none";
+    }
+
+    if (userInfo) {
+        userInfo.style.display = "none";
+    }
+
+    if (googleSignInBtn) {
+        googleSignInBtn.style.display = "inline-block";
+    }
+
+    if (googleSignOutBtn) {
+        googleSignOutBtn.style.display = "none";
+    }
+
+    if (userEmail) {
+        userEmail.textContent = "";
+    }
+
+    if (authError) {
+        authError.textContent = message;
+        authError.style.display =
+            message ? "block" : "none";
+    }
+}
+
+
+// =====================================================
+// DASHBOARD
+// =====================================================
+
+function showDashboard(user) {
+
+    if (authScreen) {
+        authScreen.style.display = "none";
+    }
+
+    if (dashboardContent) {
+        dashboardContent.style.display = "block";
+    }
+
+    if (userInfo) {
+        userInfo.style.display = "flex";
+    }
+
+    if (googleSignInBtn) {
+        googleSignInBtn.style.display = "none";
+    }
+
+    if (googleSignOutBtn) {
+        googleSignOutBtn.style.display = "inline-block";
+    }
+
+    if (userEmail) {
+        userEmail.textContent =
+            user.email || "";
+    }
+
+    if (authError) {
+        authError.textContent = "";
+        authError.style.display = "none";
+    }
+}
+
+
+// =====================================================
+// GOOGLE SIGN IN
+// =====================================================
+
+async function signInWithGoogle() {
+
+    try {
+
+        // Clear previous error when user starts
+        // a completely new login attempt.
+        authRejectionMessage = "";
+
+        showAuthScreen("");
+
+        googleProvider.setCustomParameters({
+            prompt: "select_account"
+        });
+
+
+        const result =
+            await signInWithPopup(
+                auth,
+                googleProvider
+            );
+
+
+        const user =
+            result.user;
+
+
+        const email =
+            (user.email || "")
+                .trim()
+                .toLowerCase();
+
+
+        // =================================================
+        // NORMAL GMAIL / WRONG DOMAIN
+        // =================================================
+
+        if (
+            !email.endsWith("@usefaff.com")
+        ) {
+
+            authRejectionMessage =
+                "Please sign in with your verified @usefaff.com account.";
+
+
+            /*
+             * Show the error BEFORE signing out.
+             * This prevents the Firebase auth-state
+             * callback from removing it.
+             */
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            firebaseUser = null;
+
+
+            await signOut(auth);
+
+
+            /*
+             * Show it again after signOut in case
+             * Firebase changed the auth state.
+             */
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            return;
+        }
+
+
+        // =================================================
+        // UNVERIFIED COMPANY ACCOUNT
+        // =================================================
+
+        if (
+            user.emailVerified !== true
+        ) {
+
+            authRejectionMessage =
+                "Please sign in with your verified @usefaff.com account.";
+
+
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            firebaseUser = null;
+
+
+            await signOut(auth);
+
+
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            return;
+        }
+
+
+        // =================================================
+        // VALID ACCOUNT
+        // =================================================
+
+        authRejectionMessage = "";
+
+        firebaseUser = user;
+
+        showDashboard(user);
+
+        await loadMessages();
+
+        connectWebSocket();
+
+        startPolling();
+
+
+    } catch (error) {
+
+        console.error(
+            "Google sign-in failed:",
+            error
+        );
+
+
+        if (
+            error.code ===
+            "auth/popup-closed-by-user"
+        ) {
+
+            showAuthScreen(
+                "Sign-in was cancelled."
+            );
+
+        } else {
+
+            showAuthScreen(
+                error.message ||
+                "Google sign-in failed."
+            );
+
+        }
+
+    }
+}
+
+
+// =====================================================
+// SIGN OUT
+// =====================================================
+
+async function signOutUser() {
+
+    try {
+
+        authRejectionMessage = "";
+
+        firebaseUser = null;
+
+        stopPolling();
+
+        disconnectWebSocket();
+
+        await signOut(auth);
+
+        showAuthScreen("");
+
+    } catch (error) {
+
+        console.error(
+            "Sign-out failed:",
+            error
+        );
+
+    }
+}
+
+
+// =====================================================
+// AUTH STATE
+// =====================================================
+
+onAuthStateChanged(
+    auth,
+    async user => {
+
+        // =================================================
+        // LOGGED OUT
+        // =================================================
+
+        if (!user) {
+
+            firebaseUser = null;
+
+            stopPolling();
+
+            disconnectWebSocket();
+
+            allMessages = [];
+
+            renderMessages();
+
+            setConnectionStatus(
+                false,
+                "Sign in required"
+            );
+
+
+            /*
+             * IMPORTANT:
+             *
+             * If this logout happened because an
+             * unauthorized Gmail was rejected, keep
+             * the rejection message.
+             */
+
+            if (
+                authRejectionMessage
+            ) {
+
+                showAuthScreen(
+                    authRejectionMessage
+                );
+
+            } else {
+
+                showAuthScreen("");
+
+            }
+
+            return;
+        }
+
+
+        // =================================================
+        // EMAIL
+        // =================================================
+
+        const email =
+            (user.email || "")
+                .trim()
+                .toLowerCase();
+
+
+        // =================================================
+        // WRONG DOMAIN
+        // =================================================
+
+        if (
+            !email.endsWith("@usefaff.com")
+        ) {
+
+            authRejectionMessage =
+                "Please sign in with your verified @usefaff.com account.";
+
+
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            firebaseUser = null;
+
+            await signOut(auth);
+
+            return;
+        }
+
+
+        // =================================================
+        // UNVERIFIED
+        // =================================================
+
+        if (
+            user.emailVerified !== true
+        ) {
+
+            authRejectionMessage =
+                "Please sign in with your verified @usefaff.com account.";
+
+
+            showAuthScreen(
+                authRejectionMessage
+            );
+
+
+            firebaseUser = null;
+
+            await signOut(auth);
+
+            return;
+        }
+
+
+        // =================================================
+        // VALID USER
+        // =================================================
+
+        authRejectionMessage = "";
+
+        firebaseUser = user;
+
+        showDashboard(user);
+
+        await loadMessages();
+
+        connectWebSocket();
+
+        startPolling();
+
+    }
+);
+
+
+// =====================================================
+// BUTTONS
+// =====================================================
+
+if (googleSignInBtn) {
+
+    googleSignInBtn.addEventListener(
+        "click",
+        signInWithGoogle
+    );
+
+}
+
+
+if (googleSignOutBtn) {
+
+    googleSignOutBtn.addEventListener(
+        "click",
+        signOutUser
+    );
 
 }
 
 
 // =====================================================
-// AUTHENTICATED FETCH
+// INITIALIZE
 // =====================================================
+
+function initializeDashboard() {
+
+    setupDeviceFilters();
+
+    setupCategoryFilters();
+
+    setupSearch();
+
+    updateCategoryDescription();
+
+
+    if (refreshButton) {
+
+        refreshButton.addEventListener(
+            "click",
+            loadMessages
+        );
+
+    }
+}
+
+
+if (
+    document.readyState === "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeDashboard
+    );
+
+} else {
+
+    initializeDashboard();
+
+}
+
+
+// =====================================================
+// AUTH FETCH
+// =====================================================
+
+async function getAuthToken() {
+
+    if (!firebaseUser) {
+        throw new Error(
+            "Not authenticated"
+        );
+    }
+
+    return await firebaseUser.getIdToken();
+}
+
 
 async function authFetch(
     url,
@@ -130,430 +593,16 @@ async function authFetch(
     const token =
         await getAuthToken();
 
-
-    const headers = {
+    options.headers = {
         ...(options.headers || {}),
-        "Authorization": `Bearer ${token}`
+        "Authorization":
+            `Bearer ${token}`
     };
-
 
     return fetch(
         url,
-        {
-            ...options,
-            headers
-        }
+        options
     );
-
-}
-
-
-// =====================================================
-// AUTH SCREEN
-// =====================================================
-
-function showAuthScreen(
-    message = ""
-) {
-
-    if (authScreen) {
-
-        authScreen.style.display =
-            "flex";
-
-    }
-
-
-    if (dashboardContent) {
-
-        dashboardContent.style.display =
-            "none";
-
-    }
-
-
-    if (userInfo) {
-
-        userInfo.style.display =
-            "none";
-
-    }
-
-
-    if (authError) {
-
-        if (message) {
-
-            authError.textContent =
-                message;
-
-            authError.style.display =
-                "block";
-
-        } else {
-
-            authError.textContent =
-                "";
-
-            authError.style.display =
-                "none";
-
-        }
-
-    }
-
-
-    if (googleSignInBtn) {
-
-        googleSignInBtn.disabled =
-            false;
-
-        googleSignInBtn.textContent =
-            "Sign in with Google";
-
-    }
-
-}
-
-
-// =====================================================
-// SHOW DASHBOARD
-// =====================================================
-
-function showDashboard(
-    user
-) {
-
-    if (authScreen) {
-
-        authScreen.style.display =
-            "none";
-
-    }
-
-
-    if (dashboardContent) {
-
-        dashboardContent.style.display =
-            "block";
-
-    }
-
-
-    if (userInfo) {
-
-        userInfo.style.display =
-            "flex";
-
-    }
-
-
-    if (userEmail) {
-
-        userEmail.textContent =
-            user.email || "";
-
-    }
-
-
-    if (authError) {
-
-        authError.textContent =
-            "";
-
-        authError.style.display =
-            "none";
-
-    }
-
-}
-
-
-// =====================================================
-// GOOGLE SIGN-IN
-// =====================================================
-
-if (googleSignInBtn) {
-
-    googleSignInBtn.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                googleSignInBtn.disabled =
-                    true;
-
-                googleSignInBtn.textContent =
-                    "Signing in...";
-
-
-                await signInWithPopup(
-                    auth,
-                    googleProvider
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Google sign-in failed:",
-                    error
-                );
-
-
-                googleSignInBtn.disabled =
-                    false;
-
-                googleSignInBtn.textContent =
-                    "Sign in with Google";
-
-
-                /*
-                 * User closed the Google popup.
-                 * Don't show an error for that.
-                 */
-
-                if (
-                    error.code ===
-                    "auth/popup-closed-by-user"
-                ) {
-
-                    return;
-
-                }
-
-
-                showAuthScreen(
-                    "Google sign-in failed. Please try again."
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
-// =====================================================
-// GOOGLE SIGN-OUT
-// =====================================================
-
-if (googleSignOutBtn) {
-
-    googleSignOutBtn.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                disconnectWebSocket();
-
-
-                firebaseUser =
-                    null;
-
-
-                allMessages =
-                    [];
-
-
-                renderMessages();
-
-
-                await signOut(
-                    auth
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Google sign-out failed:",
-                    error
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
-// =====================================================
-// FIREBASE AUTH STATE
-// =====================================================
-
-onAuthStateChanged(
-    auth,
-    async (user) => {
-
-        // =================================================
-        // NOT SIGNED IN
-        // =================================================
-
-        if (!user) {
-
-            firebaseUser =
-                null;
-
-
-            disconnectWebSocket();
-
-
-            allMessages =
-                [];
-
-
-            renderMessages();
-
-
-            showAuthScreen();
-
-
-            setConnectionStatus(
-                false,
-                "Sign in required"
-            );
-
-
-            return;
-
-        }
-
-
-        // =================================================
-        // CHECK EMAIL
-        // =================================================
-
-        const email =
-            String(
-                user.email || ""
-            ).toLowerCase();
-
-
-        const isVerified =
-            user.emailVerified === true;
-
-
-        const isCompanyEmail =
-            email.endsWith(
-                "@usefaff.com"
-            );
-
-
-        // =================================================
-        // REJECT PERSONAL ACCOUNTS
-        // =================================================
-
-        if (
-            !isVerified ||
-            !isCompanyEmail
-        ) {
-
-            firebaseUser =
-                null;
-
-
-            disconnectWebSocket();
-
-
-            allMessages =
-                [];
-
-
-            renderMessages();
-
-
-            /*
-             * Sign the unauthorized user out.
-             * The dashboard remains hidden.
-             */
-
-            try {
-
-                await signOut(
-                    auth
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to sign out unauthorized user:",
-                    error
-                );
-
-            }
-
-
-            showAuthScreen(
-                "Please sign in with your verified @usefaff.com account."
-            );
-
-
-            return;
-
-        }
-
-
-        // =================================================
-        // APPROVED COMPANY USER
-        // =================================================
-
-        firebaseUser =
-            user;
-
-
-        showDashboard(
-            user
-        );
-
-
-        try {
-
-            await loadMessages();
-
-            connectWebSocket();
-
-        } catch (error) {
-
-            console.error(
-                "Dashboard initialization failed:",
-                error
-            );
-
-        }
-
-    }
-);
-
-
-// =====================================================
-// INITIALIZE DASHBOARD CONTROLS
-// =====================================================
-
-setupDeviceFilters();
-
-setupCategoryFilters();
-
-setupSearch();
-
-
-if (refreshButton) {
-
-    refreshButton.addEventListener(
-        "click",
-        () => {
-
-            if (firebaseUser) {
-                loadMessages();
-            }
-
-        }
-    );
-
 }
 
 
@@ -562,11 +611,6 @@ if (refreshButton) {
 // =====================================================
 
 async function loadMessages() {
-
-    /*
-     * Never request SMS data without
-     * Firebase authentication.
-     */
 
     if (!firebaseUser) {
         return;
@@ -585,35 +629,17 @@ async function loadMessages() {
             );
 
 
+        if (
+            response.status === 401
+        ) {
+
+            await signOut(auth);
+
+            return;
+        }
+
+
         if (!response.ok) {
-
-            if (
-                response.status ===
-                401
-            ) {
-
-                console.error(
-                    "Authentication rejected by server."
-                );
-
-                return;
-
-            }
-
-
-            if (
-                response.status ===
-                403
-            ) {
-
-                console.error(
-                    "Access denied."
-                );
-
-                return;
-
-            }
-
 
             throw new Error(
                 `Failed to load messages: ${response.status}`
@@ -626,15 +652,14 @@ async function loadMessages() {
             await response.json();
 
 
-        if (Array.isArray(data)) {
+        if (
+            Array.isArray(data)
+        ) {
 
-            allMessages =
-                data;
+            allMessages = data;
 
         } else if (
-            Array.isArray(
-                data.messages
-            )
+            Array.isArray(data.messages)
         ) {
 
             allMessages =
@@ -642,8 +667,7 @@ async function loadMessages() {
 
         } else {
 
-            allMessages =
-                [];
+            allMessages = [];
 
         }
 
@@ -651,7 +675,6 @@ async function loadMessages() {
         sortMessages();
 
         renderMessages();
-
 
         setConnectionStatus(
             true,
@@ -666,17 +689,12 @@ async function loadMessages() {
             error
         );
 
-
         setConnectionStatus(
             false,
             "Server error"
         );
 
-
-        renderMessages();
-
     }
-
 }
 
 
@@ -694,23 +712,19 @@ function sortMessages() {
                     a.timestamp || 0
                 ).getTime();
 
-
             const dateB =
                 new Date(
                     b.timestamp || 0
                 ).getTime();
 
-
             return dateB - dateA;
-
         }
     );
-
 }
 
 
 // =====================================================
-// DEVICE FILTER
+// DEVICE FILTERS
 // =====================================================
 
 function setupDeviceFilters() {
@@ -758,12 +772,11 @@ function setupDeviceFilters() {
 
         }
     );
-
 }
 
 
 // =====================================================
-// CATEGORY FILTER
+// CATEGORY FILTERS
 // =====================================================
 
 function setupCategoryFilters() {
@@ -811,7 +824,6 @@ function setupCategoryFilters() {
 
         }
     );
-
 }
 
 
@@ -827,13 +839,11 @@ function updateCategoryDescription() {
 
 
     if (
-        selectedCategory ===
-        "all"
+        selectedCategory === "all"
     ) {
 
         if (
-            selectedDevice ===
-            "all"
+            selectedDevice === "all"
         ) {
 
             categoryDescription.textContent =
@@ -846,15 +856,12 @@ function updateCategoryDescription() {
 
         }
 
-
         return;
-
     }
 
 
     if (
-        selectedDevice ===
-        "all"
+        selectedDevice === "all"
     ) {
 
         categoryDescription.textContent =
@@ -866,7 +873,6 @@ function updateCategoryDescription() {
             `Showing ${selectedCategory} messages from ${formatDeviceName(selectedDevice)}`;
 
     }
-
 }
 
 
@@ -905,12 +911,9 @@ function setupSearch() {
             "click",
             () => {
 
-                searchInput.value =
-                    "";
+                searchInput.value = "";
 
-                searchText =
-                    "";
-
+                searchText = "";
 
                 updateClearButton();
 
@@ -925,13 +928,8 @@ function setupSearch() {
 
 
     updateClearButton();
-
 }
 
-
-// =====================================================
-// CLEAR SEARCH
-// =====================================================
 
 function updateClearButton() {
 
@@ -954,12 +952,11 @@ function updateClearButton() {
             "none";
 
     }
-
 }
 
 
 // =====================================================
-// FILTER MESSAGES
+// FILTER
 // =====================================================
 
 function getFilteredMessages() {
@@ -967,13 +964,8 @@ function getFilteredMessages() {
     return allMessages.filter(
         message => {
 
-            // -----------------------------------------
-            // DEVICE
-            // -----------------------------------------
-
             if (
-                selectedDevice !==
-                "all" &&
+                selectedDevice !== "all" &&
                 String(
                     message.device_id || ""
                 ).toLowerCase() !==
@@ -981,17 +973,11 @@ function getFilteredMessages() {
             ) {
 
                 return false;
-
             }
 
 
-            // -----------------------------------------
-            // CATEGORY
-            // -----------------------------------------
-
             if (
-                selectedCategory !==
-                "all" &&
+                selectedCategory !== "all" &&
                 String(
                     message.category || ""
                 ).toLowerCase() !==
@@ -999,13 +985,8 @@ function getFilteredMessages() {
             ) {
 
                 return false;
-
             }
 
-
-            // -----------------------------------------
-            // SEARCH
-            // -----------------------------------------
 
             if (searchText) {
 
@@ -1014,18 +995,15 @@ function getFilteredMessages() {
                         message.sender || ""
                     ).toLowerCase();
 
-
                 const body =
                     String(
                         message.body || ""
                     ).toLowerCase();
 
-
                 const category =
                     String(
                         message.category || ""
                     ).toLowerCase();
-
 
                 const device =
                     String(
@@ -1033,33 +1011,21 @@ function getFilteredMessages() {
                     ).toLowerCase();
 
 
-                const matches =
-                    sender.includes(
-                        searchText
-                    ) ||
-                    body.includes(
-                        searchText
-                    ) ||
-                    category.includes(
-                        searchText
-                    ) ||
-                    device.includes(
-                        searchText
-                    );
+                if (
+                    !sender.includes(searchText) &&
+                    !body.includes(searchText) &&
+                    !category.includes(searchText) &&
+                    !device.includes(searchText)
+                ) {
 
-
-                if (!matches) {
                     return false;
                 }
-
             }
 
 
             return true;
-
         }
     );
-
 }
 
 
@@ -1078,19 +1044,13 @@ function renderMessages() {
         getFilteredMessages();
 
 
-    messagesList.innerHTML =
-        "";
+    messagesList.innerHTML = "";
 
-
-    // -----------------------------------------
-    // COUNT
-    // -----------------------------------------
 
     if (visibleCount) {
 
         const count =
             filteredMessages.length;
-
 
         visibleCount.textContent =
             `${count} ${
@@ -1098,60 +1058,39 @@ function renderMessages() {
                     ? "message"
                     : "messages"
             }`;
-
     }
 
 
-    // -----------------------------------------
-    // EMPTY
-    // -----------------------------------------
-
     if (
-        filteredMessages.length ===
-        0
+        filteredMessages.length === 0
     ) {
 
         if (emptyState) {
-
             emptyState.style.display =
                 "block";
-
         }
 
-
         return;
-
     }
 
 
     if (emptyState) {
-
         emptyState.style.display =
             "none";
-
     }
 
-
-    // -----------------------------------------
-    // CARDS
-    // -----------------------------------------
 
     filteredMessages.forEach(
         message => {
 
-            const card =
+            messagesList.appendChild(
                 createMessageCard(
                     message
-                );
-
-
-            messagesList.appendChild(
-                card
+                )
             );
 
         }
     );
-
 }
 
 
@@ -1173,77 +1112,48 @@ function createMessageCard(
         "message-card";
 
 
-    if (message.is_read) {
+    card.classList.add(
+        message.is_read
+            ? "read"
+            : "unread"
+    );
 
-        card.classList.add(
-            "read"
-        );
-
-    } else {
-
-        card.classList.add(
-            "unread"
-        );
-
-    }
-
-
-    // -----------------------------------------
-    // TOP
-    // -----------------------------------------
 
     const topRow =
         document.createElement(
             "div"
         );
 
-
     topRow.className =
         "message-top";
 
-
-    // -----------------------------------------
-    // SENDER
-    // -----------------------------------------
 
     const sender =
         document.createElement(
             "div"
         );
 
-
     sender.className =
         "message-sender";
-
 
     sender.textContent =
         message.sender ||
         "Unknown";
 
 
-    // -----------------------------------------
-    // BADGES
-    // -----------------------------------------
-
     const badges =
         document.createElement(
             "div"
         );
 
-
     badges.className =
         "message-badges";
 
-
-    // -----------------------------------------
-    // DEVICE BADGE
-    // -----------------------------------------
 
     const deviceBadge =
         document.createElement(
             "span"
         );
-
 
     deviceBadge.className =
         "device-badge " +
@@ -1252,7 +1162,6 @@ function createMessageCard(
             "samsung"
         ).toLowerCase();
 
-
     deviceBadge.textContent =
         formatDeviceName(
             message.device_id ||
@@ -1260,19 +1169,13 @@ function createMessageCard(
         );
 
 
-    // -----------------------------------------
-    // CATEGORY BADGE
-    // -----------------------------------------
-
     const categoryBadge =
         document.createElement(
             "span"
         );
 
-
     categoryBadge.className =
         "category-badge";
-
 
     categoryBadge.textContent =
         message.category ||
@@ -1283,7 +1186,6 @@ function createMessageCard(
         deviceBadge
     );
 
-
     badges.appendChild(
         categoryBadge
     );
@@ -1293,25 +1195,18 @@ function createMessageCard(
         sender
     );
 
-
     topRow.appendChild(
         badges
     );
 
-
-    // -----------------------------------------
-    // TIME
-    // -----------------------------------------
 
     const time =
         document.createElement(
             "div"
         );
 
-
     time.className =
         "message-time";
-
 
     time.textContent =
         formatTimestamp(
@@ -1319,42 +1214,27 @@ function createMessageCard(
         );
 
 
-    // -----------------------------------------
-    // BODY
-    // -----------------------------------------
-
     const body =
         document.createElement(
             "div"
         );
 
-
     body.className =
         "message-body";
-
 
     body.textContent =
         message.body ||
         "";
 
 
-    // -----------------------------------------
-    // ACTIONS
-    // -----------------------------------------
-
     const actions =
         document.createElement(
             "div"
         );
 
-
     actions.className =
         "message-actions";
 
-
-    // -----------------------------------------
-    // MARK AS READ
-    // -----------------------------------------
 
     if (!message.is_read) {
 
@@ -1363,14 +1243,11 @@ function createMessageCard(
                 "button"
             );
 
-
         readButton.type =
             "button";
 
-
         readButton.className =
             "message-action";
-
 
         readButton.textContent =
             "Mark as read";
@@ -1391,23 +1268,16 @@ function createMessageCard(
         actions.appendChild(
             readButton
         );
-
     }
 
-
-    // -----------------------------------------
-    // BUILD CARD
-    // -----------------------------------------
 
     card.appendChild(
         topRow
     );
 
-
     card.appendChild(
         time
     );
-
 
     card.appendChild(
         body
@@ -1415,8 +1285,7 @@ function createMessageCard(
 
 
     if (
-        actions.children.length >
-        0
+        actions.children.length > 0
     ) {
 
         card.appendChild(
@@ -1427,7 +1296,6 @@ function createMessageCard(
 
 
     return card;
-
 }
 
 
@@ -1435,14 +1303,7 @@ function createMessageCard(
 // MARK AS READ
 // =====================================================
 
-async function markAsRead(
-    id
-) {
-
-    if (!firebaseUser) {
-        return;
-    }
-
+async function markAsRead(id) {
 
     try {
 
@@ -1455,30 +1316,34 @@ async function markAsRead(
             );
 
 
+        if (
+            response.status === 401
+        ) {
+
+            await signOut(auth);
+
+            return;
+        }
+
+
         if (!response.ok) {
 
             throw new Error(
                 `Failed to mark message as read: ${response.status}`
             );
-
         }
 
 
         const message =
             allMessages.find(
                 item =>
-                    String(
-                        item.id
-                    ) ===
+                    String(item.id) ===
                     String(id)
             );
 
 
         if (message) {
-
-            message.is_read =
-                true;
-
+            message.is_read = true;
         }
 
 
@@ -1492,18 +1357,10 @@ async function markAsRead(
             error
         );
 
-
-        /*
-         * Don't expose backend details
-         * unnecessarily to the user.
-         */
-
         alert(
             "Unable to mark this message as read."
         );
-
     }
-
 }
 
 
@@ -1513,12 +1370,21 @@ async function markAsRead(
 
 async function connectWebSocket() {
 
-    /*
-     * Never create a WebSocket
-     * before authentication.
-     */
-
     if (!firebaseUser) {
+        return;
+    }
+
+
+    if (
+        socket &&
+        (
+            socket.readyState ===
+            WebSocket.OPEN ||
+            socket.readyState ===
+            WebSocket.CONNECTING
+        )
+    ) {
+
         return;
     }
 
@@ -1529,11 +1395,6 @@ async function connectWebSocket() {
             await getAuthToken();
 
 
-        if (!firebaseUser) {
-            return;
-        }
-
-
         const protocol =
             window.location.protocol ===
             "https:"
@@ -1542,8 +1403,7 @@ async function connectWebSocket() {
 
 
         const wsUrl =
-            `${protocol}//${window.location.host}/ws` +
-            `?token=${encodeURIComponent(token)}`;
+            `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
 
 
         socket =
@@ -1556,15 +1416,13 @@ async function connectWebSocket() {
             () => {
 
                 console.log(
-                    "Authenticated WebSocket connected"
+                    "WebSocket connected"
                 );
-
 
                 setConnectionStatus(
                     true,
                     "Live"
                 );
-
             };
 
 
@@ -1573,10 +1431,17 @@ async function connectWebSocket() {
 
                 try {
 
-                    const message =
+                    const payload =
                         JSON.parse(
                             event.data
                         );
+
+
+                    const message =
+                        payload &&
+                        payload.message
+                            ? payload.message
+                            : payload;
 
 
                     if (
@@ -1586,7 +1451,11 @@ async function connectWebSocket() {
                     ) {
 
                         return;
+                    }
 
+
+                    if (!message.id) {
+                        return;
                     }
 
 
@@ -1608,11 +1477,9 @@ async function connectWebSocket() {
                             message
                         );
 
-
                         sortMessages();
 
                         renderMessages();
-
                     }
 
 
@@ -1622,9 +1489,7 @@ async function connectWebSocket() {
                         "WebSocket message error:",
                         error
                     );
-
                 }
-
             };
 
 
@@ -1636,17 +1501,17 @@ async function connectWebSocket() {
                     error
                 );
 
-
                 setConnectionStatus(
                     false,
                     "Offline"
                 );
-
             };
 
 
         socket.onclose =
             () => {
+
+                socket = null;
 
                 setConnectionStatus(
                     false,
@@ -1659,25 +1524,16 @@ async function connectWebSocket() {
                 );
 
 
-                /*
-                 * Only reconnect if
-                 * user is still logged in.
-                 */
-
                 if (firebaseUser) {
 
                     reconnectTimer =
                         setTimeout(
                             () => {
-
                                 connectWebSocket();
-
                             },
                             3000
                         );
-
                 }
-
             };
 
 
@@ -1688,14 +1544,11 @@ async function connectWebSocket() {
             error
         );
 
-
         setConnectionStatus(
             false,
             "Offline"
         );
-
     }
-
 }
 
 
@@ -1709,25 +1562,53 @@ function disconnectWebSocket() {
         reconnectTimer
     );
 
-
-    reconnectTimer =
-        null;
+    reconnectTimer = null;
 
 
     if (socket) {
 
-        socket.onclose =
-            null;
-
+        socket.onclose = null;
 
         socket.close();
 
-
-        socket =
-            null;
-
+        socket = null;
     }
+}
 
+
+// =====================================================
+// POLLING
+// =====================================================
+
+function startPolling() {
+
+    stopPolling();
+
+
+    pollingTimer =
+        setInterval(
+            () => {
+
+                if (firebaseUser) {
+                    loadMessages();
+                }
+
+            },
+            3000
+        );
+}
+
+
+function stopPolling() {
+
+    if (pollingTimer) {
+
+        clearInterval(
+            pollingTimer
+        );
+
+        pollingTimer = null;
+    }
 }
 
 
@@ -1747,12 +1628,10 @@ function setConnectionStatus(
             connected
         );
 
-
         connectionDot.classList.toggle(
             "disconnected",
             !connected
         );
-
     }
 
 
@@ -1760,9 +1639,7 @@ function setConnectionStatus(
 
         connectionText.textContent =
             text;
-
     }
-
 }
 
 
@@ -1780,29 +1657,18 @@ function formatDeviceName(
         ).toLowerCase();
 
 
-    if (
-        value ===
-        "samsung"
-    ) {
-
+    if (value === "samsung") {
         return "Samsung";
-
     }
 
 
-    if (
-        value ===
-        "poco"
-    ) {
-
+    if (value === "poco") {
         return "Poco";
-
     }
 
 
     return device ||
         "Unknown";
-
 }
 
 
@@ -1820,9 +1686,7 @@ function formatTimestamp(
 
 
     const date =
-        new Date(
-            timestamp
-        );
+        new Date(timestamp);
 
 
     if (
@@ -1831,10 +1695,7 @@ function formatTimestamp(
         )
     ) {
 
-        return String(
-            timestamp
-        );
-
+        return String(timestamp);
     }
 
 
@@ -1848,28 +1709,4 @@ function formatTimestamp(
             minute: "2-digit"
         }
     );
-
 }
-
-
-// =====================================================
-// AUTOMATIC REFRESH
-// =====================================================
-
-setInterval(
-    () => {
-
-        /*
-         * Only poll when an approved
-         * user is authenticated.
-         */
-
-        if (firebaseUser) {
-
-            loadMessages();
-
-        }
-
-    },
-    3000
-);
