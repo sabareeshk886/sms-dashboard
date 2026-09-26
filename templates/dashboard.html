@@ -10,12 +10,17 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <meta
-        name="description"
-        content="Private SMS Dashboard"
+    <title>SMS Dashboard</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
     >
 
-    <title>SMS Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
     <link
         rel="icon"
@@ -23,340 +28,1541 @@
         href="/static/favicon.svg"
     >
 
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
 
     <style>
 
-        /* ==========================================
-           AUTH SCREEN
-        =========================================== */
+        /* =====================================================
+           COLORS
+        ===================================================== */
+
+        :root {
+
+            --teal: #145c65;
+            --teal-dark: #104c54;
+            --teal-light: #e4f0f1;
+
+            --cream: #f5f2ea;
+            --cream-dark: #ebe7dd;
+
+            --white: #ffffff;
+
+            --text: #172321;
+            --text-soft: #64706d;
+            --text-light: #929c98;
+
+            --border: #e3dfd6;
+
+            --orange: #f28a3c;
+            --orange-dark: #dc762c;
+
+            --green: #37a960;
+
+        }
+
+
+        /* =====================================================
+           RESET
+        ===================================================== */
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        html,
+        body {
+
+            margin: 0;
+
+            padding: 0;
+
+            min-height: 100%;
+
+        }
+
+
+        body {
+
+            font-family:
+                "Manrope",
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background: var(--cream);
+
+            color: var(--text);
+
+        }
+
+
+        button,
+        input,
+        select {
+
+            font-family: inherit;
+
+        }
+
+
+        /* =====================================================
+           LOGIN
+        ===================================================== */
 
         #authScreen {
+
             position: fixed;
+
             inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f5f5f7;
+
             z-index: 9999;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 24px;
+
+            background:
+
+                radial-gradient(
+                    circle at 15% 20%,
+                    rgba(20, 92, 101, 0.10),
+                    transparent 42%
+                ),
+
+                radial-gradient(
+                    circle at 85% 80%,
+                    rgba(242, 138, 60, 0.08),
+                    transparent 40%
+                ),
+
+                radial-gradient(
+                    circle,
+                    rgba(20, 92, 101, 0.14) 1px,
+                    transparent 1.5px
+                );
+
+            background-size:
+                auto,
+                auto,
+                26px 26px;
+
         }
+
+
+        .auth-wrap {
+
+            width: 100%;
+
+            max-width: 430px;
+
+        }
+
+
+        .auth-live {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            margin-bottom: 18px;
+
+            color: var(--text-soft);
+
+            font-size: 13px;
+
+        }
+
+
+        .auth-live-dot {
+
+            width: 8px;
+
+            height: 8px;
+
+            border-radius: 50%;
+
+            background: var(--green);
+
+            box-shadow:
+                0 0 0 4px
+                rgba(55, 169, 96, 0.14);
+
+        }
+
 
         .auth-card {
-            width: min(420px, calc(100% - 40px));
-            padding: 42px 36px;
-            background: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 20px;
+
+            padding:
+                44px 40px 38px;
+
+            background: var(--white);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 22px;
+
             text-align: center;
-            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+
+            box-shadow:
+                0 22px 55px -20px
+                rgba(20, 92, 101, 0.25);
+
         }
+
 
         .auth-logo {
-            width: 68px;
-            height: 68px;
-            margin: 0 auto 22px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
-            background: #111111;
-            color: #ffffff;
+            height: 70px;
 
-            border-radius: 16px;
+            margin-bottom: 24px;
 
-            font-size: 20px;
-            font-weight: 800;
         }
+
+
+        .auth-logo img {
+
+            display: block;
+
+            width: auto;
+
+            height: 58px;
+
+            max-width: 190px;
+
+            object-fit: contain;
+
+        }
+
 
         .auth-card h1 {
-            margin: 0 0 8px;
-            font-size: 28px;
-            color: #111111;
+
+            margin:
+                0 0 10px;
+
+            color: var(--teal-dark);
+
+            font-size: 29px;
+
+            font-weight: 800;
+
+            letter-spacing: -0.6px;
+
         }
 
-        .auth-card p {
-            margin: 0 0 28px;
-            color: #777777;
+
+        .auth-subtitle {
+
+            max-width: 340px;
+
+            margin:
+                0 auto 30px;
+
+            color: var(--text-soft);
+
             font-size: 15px;
+
+            line-height: 1.55;
+
         }
 
-        .google-signin-button {
+
+        .auth-subtitle strong {
+
+            color: var(--text);
+
+        }
+
+
+        .google-btn {
+
             width: 100%;
-            min-height: 46px;
 
-            border: 1px solid #d5d5d5;
-            border-radius: 9px;
+            min-height: 54px;
 
-            background: #ffffff;
-            color: #222222;
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 11px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 11px;
+
+            background: var(--white);
+
+            color: var(--text);
 
             font-size: 15px;
-            font-weight: 600;
+
+            font-weight: 700;
 
             cursor: pointer;
 
-            transition:
-                background 0.15s ease,
-                box-shadow 0.15s ease;
+            transition: .15s ease;
+
         }
 
-        .google-signin-button:hover {
-            background: #f7f7f7;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+
+        .google-btn:hover {
+
+            border-color: var(--teal);
+
+            box-shadow:
+                0 5px 18px -8px
+                rgba(20, 92, 101, 0.35);
+
         }
 
-        .auth-error {
+
+        .auth-divider {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            margin:
+                25px 0 20px;
+
+            color: #9aa4a0;
+
+            font-size: 12px;
+
+        }
+
+
+        .auth-divider::before,
+        .auth-divider::after {
+
+            content: "";
+
+            flex: 1;
+
+            height: 1px;
+
+            background: var(--border);
+
+        }
+
+
+        .auth-meta {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 18px;
+
+            color: var(--text-soft);
+
+            font-size: 12px;
+
+        }
+
+
+        .auth-meta span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+        }
+
+
+        #authError {
+
             display: none;
 
             margin-top: 18px;
+
             padding: 12px 14px;
 
-            border-radius: 8px;
-
-            background: #fff1f1;
-            color: #b42318;
-
-            font-size: 14px;
-            line-height: 1.4;
-        }
-
-
-        /* ==========================================
-           AUTH USER AREA
-        =========================================== */
-
-        #userInfo {
-            display: none;
-            align-items: center;
-            gap: 12px;
-        }
-
-        #userEmail {
-            font-size: 14px;
-            color: #555555;
-        }
-
-        .auth-button {
-            border: 1px solid #d5d5d5;
-            border-radius: 8px;
-
-            background: #ffffff;
-            color: #222222;
-
-            padding: 8px 13px;
-
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .auth-button:hover {
-            background: #f5f5f5;
-        }
-
-
-        /* ==========================================
-           FILTER BAR
-        =========================================== */
-
-        .filter-bar {
-            padding-bottom: 10px;
-        }
-
-
-        /* ==========================================
-           DATE FILTER
-        =========================================== */
-
-        .date-filter-section {
-            width: 100%;
-            padding: 28px 0 18px;
-        }
-
-        .date-filter-group {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .date-filter-group h2 {
-            margin: 0 4px 0 0;
-
-            font-size: 15px;
-            font-weight: 700;
-
-            color: #111111;
-        }
-
-        .date-filter-select,
-        .date-input {
-            height: 48px;
-
-            padding: 0 15px;
-
-            border: 1px solid #dcdfe4;
             border-radius: 10px;
 
-            background: #ffffff;
-            color: #222222;
+            background: #fff0f0;
 
-            font-size: 14px;
-            font-family: inherit;
+            color: #b42318;
+
+            font-size: 13px;
+
+            line-height: 1.45;
+
+        }
+
+
+        .auth-footer {
+
+            margin-top: 20px;
+
+            color: #97a19d;
+
+            font-size: 12px;
+
+            text-align: center;
+
+        }
+
+
+        /* =====================================================
+           DASHBOARD
+        ===================================================== */
+
+        #dashboardContent {
+
+            min-height: 100vh;
+
+            background: var(--cream);
+
+        }
+
+
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        .topbar {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+            padding:
+                17px
+                clamp(20px, 4vw, 44px);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #10515a,
+                    #176872
+                );
+
+            color: #fff;
+
+            border-radius:
+                0 0 18px 18px;
+
+        }
+
+
+        .brand {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+
+        }
+
+
+        .brand-logo-wrap {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            width: 80px;
+
+            height: 38px;
+
+            padding-right: 15px;
+
+            border-right:
+                1px solid
+                rgba(255,255,255,.23);
+
+        }
+
+
+        .brand-logo {
+    display: block;
+    width: auto;
+    height: 39px;
+    max-width: 85px;
+    object-fit: contain;
+    filter:
+        brightness(0)
+        invert(1);
+}
+
+
+        .brand-title h1 {
+
+            margin: 0;
+
+            font-size: 20px;
+
+            font-weight: 800;
+
+            line-height: 1.2;
+
+        }
+
+
+        .brand-title p {
+
+            margin:
+                3px 0 0;
+
+            color:
+                rgba(255,255,255,.68);
+
+            font-size: 12px;
+
+        }
+
+
+        .top-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 13px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+        .live-pill {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding:
+                7px 12px;
+
+            border-radius: 999px;
+
+            background:
+                rgba(255,255,255,.10);
+
+            color: #c7f1d2;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+        }
+
+
+        .live-pill .dot {
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: var(--green);
+
+        }
+
+
+        .live-pill.disconnected {
+
+            color: #ffd1d1;
+
+        }
+
+
+        .live-pill.disconnected .dot {
+
+            background: #ef7777;
+
+        }
+
+
+        #userEmail {
+
+            color:
+                rgba(255,255,255,.80);
+
+            font-size: 12px;
+
+        }
+
+
+        #userInfo {
+
+            display: none;
+
+        }
+
+
+        .btn-signout {
+
+            padding:
+                9px 15px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.27);
+
+            border-radius: 9px;
+
+            background:
+                rgba(255,255,255,.08);
+
+            color: #fff;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+        }
+
+
+        /* =====================================================
+           MAIN
+        ===================================================== */
+
+        .dashboard-main {
+
+            width: 100%;
+
+            max-width: 1500px;
+
+            margin: 0 auto;
+
+            padding:
+                30px
+                clamp(20px, 4vw, 48px)
+                60px;
+
+        }
+
+
+        /* =====================================================
+           FILTER PANEL
+        ===================================================== */
+
+        .filter-panel {
+
+            padding:
+                20px 26px 24px;
+
+            background: var(--white);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 16px;
+
+            box-shadow:
+                0 2px 5px
+                rgba(0,0,0,.025);
+
+        }
+
+
+        .filters {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 30px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+        .filter-group {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 13px;
+
+        }
+
+
+        .filter-label {
+
+            color: #71807c;
+
+            font-size: 12px;
+
+            font-weight: 800;
+
+            letter-spacing: .06em;
+
+        }
+
+
+        .chip-row {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+        /*
+         * IMPORTANT:
+         * app.js looks for .filter-btn
+         */
+
+        .filter-btn {
+
+            min-height: 40px;
+
+            padding:
+                0 17px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 999px;
+
+            background: var(--white);
+
+            color: var(--text-soft);
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition: .15s ease;
+
+        }
+
+
+        .filter-btn:hover {
+
+            border-color: var(--teal);
+
+            color: var(--teal);
+
+        }
+
+
+        .filter-btn.active {
+
+            border-color: var(--teal);
+
+            background: var(--teal);
+
+            color: #fff;
+
+        }
+
+
+        .filter-separator {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: var(--border);
+
+        }
+
+
+        /* =====================================================
+           DATE
+        ===================================================== */
+
+        .date-row {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin-top: 24px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+        .date-label {
+
+            color: var(--text);
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+        }
+
+
+        #dateFilterMode {
+
+            min-width: 185px;
+
+            height: 44px;
+
+            padding:
+                0 13px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 10px;
+
+            background: var(--white);
+
+            color: var(--text);
 
             outline: none;
 
-            box-sizing: border-box;
+            font-size: 13px;
 
-            transition:
-                border-color 0.15s ease,
-                box-shadow 0.15s ease;
-        }
-
-        .date-filter-select {
-            min-width: 182px;
             cursor: pointer;
-        }
 
-        .date-input {
-            min-width: 176px;
-            cursor: pointer;
-        }
-
-        .date-filter-select:hover,
-        .date-input:hover {
-            border-color: #c5c7cb;
-        }
-
-        .date-filter-select:focus,
-        .date-input:focus {
-            border-color: #999999;
-
-            box-shadow:
-                0 0 0 3px rgba(0, 0, 0, 0.04);
         }
 
 
-        /* DATE RANGE */
+        #dateFilterMode:focus {
 
-        .date-range-inputs {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+            border-color: var(--teal);
 
-        .date-range-inputs span {
-            color: #777777;
-            font-size: 14px;
-            padding: 0 2px;
         }
 
 
-        /* CLEAR */
+        #singleDateInput,
+        #startDateInput,
+        #endDateInput {
 
-        .clear-date-button {
-            height: 48px;
+            height: 44px;
 
-            padding: 0 18px;
+            min-width: 170px;
 
-            border: 1px solid #d5d5d5;
+            padding:
+                0 12px;
+
+            border:
+                1px solid var(--border);
+
             border-radius: 10px;
 
-            background: #ffffff;
-            color: #222222;
+            background: var(--white);
+
+            color: var(--text);
+
+            outline: none;
+
+            font-size: 13px;
+
+        }
+
+
+        .date-range {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+        }
+
+
+        .date-range span {
+
+            color: var(--text-light);
+
+            font-size: 13px;
+
+        }
+
+
+        #clearDateFilter {
+
+            height: 44px;
+
+            padding:
+                0 16px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 10px;
+
+            background: var(--white);
+
+            color: var(--text-soft);
+
+            font-size: 13px;
+
+            font-weight: 700;
 
             cursor: pointer;
 
+        }
+
+
+        /* =====================================================
+           SEARCH
+        ===================================================== */
+
+        .search-row {
+
+            display: flex;
+
+            align-items: stretch;
+
+            gap: 12px;
+
+            margin-top: 20px;
+
+        }
+
+
+        .search-box {
+
+            flex: 1;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            min-height: 52px;
+
+            padding:
+                0 16px;
+
+            background: var(--white);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 12px;
+
+        }
+
+
+        .search-box input {
+
+            flex: 1;
+
+            height: 50px;
+
+            min-width: 0;
+
+            border: none;
+
+            outline: none;
+
+            background: transparent;
+
+            color: var(--text);
+
             font-size: 14px;
-            font-weight: 600;
 
-            margin-left: 2px;
-
-            transition:
-                background 0.15s ease,
-                border-color 0.15s ease;
-        }
-
-        .clear-date-button:hover {
-            background: #f5f5f5;
-            border-color: #c7c7c7;
         }
 
 
-        /* ==========================================
-           SEARCH TOOLBAR
-        =========================================== */
+        .search-box input::placeholder {
 
-        .toolbar {
-            margin-top: 2px;
-            margin-bottom: 30px;
+            color: #a0aaa6;
+
         }
 
 
-        /* ==========================================
-           CATEGORY DESCRIPTION
-        =========================================== */
+        #clearSearch {
 
-        .category-description {
-            margin-bottom: 10px;
+            display: none;
+
+            align-items: center;
+
+            justify-content: center;
+
+            width: 28px;
+
+            height: 28px;
+
+            border: none;
+
+            border-radius: 50%;
+
+            background: var(--cream-dark);
+
+            color: var(--text-soft);
+
+            cursor: pointer;
+
         }
 
 
-        /* ==========================================
+        #refreshButton {
+
+            min-width: 120px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            border: none;
+
+            border-radius: 12px;
+
+            background: var(--orange);
+
+            color: #fff;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+        }
+
+
+        #refreshButton:hover {
+
+            background: var(--orange-dark);
+
+        }
+
+
+        #categoryDescription {
+
+            margin-top: 17px;
+
+            color: var(--text-soft);
+
+            font-size: 12px;
+
+        }
+
+
+        /* =====================================================
+           MESSAGE SECTION
+        ===================================================== */
+
+        .messages-header {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin:
+                34px 0 14px;
+
+        }
+
+
+        .messages-header h2 {
+
+            margin: 0;
+
+            color: var(--teal-dark);
+
+            font-size: 26px;
+
+            font-weight: 800;
+
+        }
+
+
+        #visibleCount {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            padding:
+                5px 12px;
+
+            border-radius: 999px;
+
+            background: var(--teal-light);
+
+            color: var(--teal);
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+        }
+
+
+        #messagesList {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 14px;
+
+        }
+
+
+        /* =====================================================
+           MESSAGE CARD
+        ===================================================== */
+
+        .message-card {
+
+            position: relative;
+
+            padding:
+                20px 22px;
+
+            background: var(--white);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 14px;
+
+        }
+
+
+        .message-card.unread {
+
+            border-left:
+                4px solid var(--orange);
+
+        }
+
+
+        .message-top {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+        }
+
+
+        .message-sender {
+
+            color: var(--text);
+
+            font-size: 16px;
+
+            font-weight: 800;
+
+        }
+
+
+        /*
+         * IMPORTANT:
+         * app.js generates .message-badges
+         */
+
+        .message-badges {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: flex-end;
+
+            gap: 8px;
+
+            flex-wrap: wrap;
+
+            flex-shrink: 0;
+
+        }
+
+
+        /*
+         * DEVICE BADGES
+         */
+
+        .device-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding:
+                6px 11px;
+
+            border-radius: 999px;
+
+            font-size: 10px;
+
+            line-height: 1;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+
+            white-space: nowrap;
+
+        }
+
+
+        .device-badge.samsung {
+
+            background: #e1eff1;
+
+            color: var(--teal);
+
+        }
+
+
+        .device-badge.poco,
+        .device-badge.xiaomi,
+        .device-badge.redmi {
+
+            background: #fff0dc;
+
+            color: #a1681e;
+
+        }
+
+
+        /* =====================================================
+           CATEGORY BADGES
+        ===================================================== */
+
+        .category-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding:
+                6px 11px;
+
+            border-radius: 999px;
+
+            background: var(--cream-dark);
+
+            color: var(--text-soft);
+
+            font-size: 10px;
+
+            line-height: 1;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+
+            white-space: nowrap;
+
+        }
+
+
+        /*
+         * Category colors based on category text.
+         * Works without changing app.js.
+         */
+
+        .category-badge {
+
+            background: #edf0eb;
+
+            color: #526653;
+
+        }
+
+
+        .message-time {
+
+            margin-top: 6px;
+
+            margin-bottom: 12px;
+
+            color: var(--text-light);
+
+            font-size: 12px;
+
+        }
+
+
+        .message-body {
+
+            color: var(--text);
+
+            font-size: 14px;
+
+            line-height: 1.55;
+
+            word-break: break-word;
+
+        }
+
+
+        /*
+         * app.js generates .message-actions
+         */
+
+        .message-actions {
+
+            display: flex;
+
+            justify-content: flex-end;
+
+            margin-top: 15px;
+
+        }
+
+
+        /*
+         * app.js generates .message-action
+         */
+
+        .message-action {
+
+            padding:
+                8px 15px;
+
+            border:
+                1px solid #c8d6d3;
+
+            border-radius: 9px;
+
+            background: var(--white);
+
+            color: var(--teal);
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+        }
+
+
+        .message-action:hover {
+
+            background: var(--teal-light);
+
+        }
+
+
+        /* =====================================================
+           EMPTY
+        ===================================================== */
+
+        #emptyState {
+
+            padding:
+                70px 20px;
+
+            color: var(--text-soft);
+
+            text-align: center;
+
+        }
+
+
+        /* =====================================================
            MOBILE
-        =========================================== */
+        ===================================================== */
 
-        @media (max-width: 700px) {
+        @media (max-width: 800px) {
 
-            .date-filter-section {
-                padding-top: 22px;
-                padding-bottom: 18px;
-            }
+            .topbar {
 
-            .date-filter-group {
-                align-items: stretch;
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .date-filter-group h2 {
-                margin-bottom: 2px;
-            }
-
-            .date-filter-select,
-            .date-input {
-                width: 100%;
-                min-width: 0;
-            }
-
-            .date-range-inputs {
-                width: 100%;
+                align-items: flex-start;
 
                 flex-direction: column;
-                align-items: stretch;
 
-                gap: 10px;
             }
 
-            .date-range-inputs .date-input {
+
+            .top-right {
+
                 width: 100%;
+
+                justify-content: flex-start;
+
             }
 
-            .date-range-inputs span {
+
+            .filters {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+            }
+
+
+            .filter-group {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+            }
+
+
+            .filter-separator {
+
+                width: 100%;
+
+                height: 1px;
+
+            }
+
+
+            .search-row {
+
+                flex-direction: column;
+
+            }
+
+
+            #refreshButton {
+
+                min-height: 50px;
+
+            }
+
+        }
+
+
+        @media (max-width: 600px) {
+
+            .dashboard-main {
+
+                padding:
+                    18px 14px 40px;
+
+            }
+
+
+            .filter-panel {
+
+                padding:
+                    18px;
+
+            }
+
+
+            .auth-card {
+
+                padding:
+                    38px 24px 32px;
+
+            }
+
+
+            .auth-meta {
+
+                flex-direction: column;
+
+                gap: 9px;
+
+            }
+
+
+            .brand-logo-wrap {
+
+                width: 68px;
+
+            }
+
+
+            .brand-title p {
+
                 display: none;
+
             }
 
-            .clear-date-button {
+
+            .message-top {
+
+                flex-direction: column;
+
+            }
+
+
+            .message-badges {
+
+                justify-content: flex-start;
+
+            }
+
+
+            .date-range {
+
                 width: 100%;
-                margin-left: 0;
+
+                align-items: stretch;
+
+                flex-direction: column;
+
             }
 
-            .toolbar {
-                margin-bottom: 24px;
+
+            #dateFilterMode,
+            #singleDateInput,
+            #startDateInput,
+            #endDateInput {
+
+                width: 100%;
+
+                min-width: 0;
+
             }
 
         }
@@ -369,69 +1575,214 @@
 <body>
 
 
-    <!-- =================================================
-         AUTH SCREEN
-    ================================================== -->
+    <!-- =====================================================
+         LOGIN
+    ====================================================== -->
 
     <div id="authScreen">
 
-        <div class="auth-card">
 
-            <div class="auth-logo">
-                SMS
+        <div class="auth-wrap">
+
+
+            <div class="auth-live">
+
+                <span class="auth-live-dot"></span>
+
+                <span>
+                    Live — receiving messages
+                </span>
+
             </div>
 
-            <h1>
-                SMS Dashboard
-            </h1>
 
-            <p>
-                Sign in with your faff Google account to continue.
-            </p>
+            <div class="auth-card">
 
-            <button
-                id="googleSignInBtn"
-                type="button"
-                class="google-signin-button"
-            >
-                Sign in with Google
-            </button>
 
-            <div
-                id="authError"
-                class="auth-error"
-            ></div>
+                <div class="auth-logo">
+
+                    <img
+                        src="/static/faff-logo.png"
+                        alt="faff."
+                    >
+
+                </div>
+
+
+                <h1>
+                    SMS Dashboard
+                </h1>
+
+
+                <p class="auth-subtitle">
+
+                    Sign in with your
+                    <strong>faff Google account</strong>
+                    to view messages synced from your devices.
+
+                </p>
+
+
+                <button
+                    id="googleSignInBtn"
+                    class="google-btn"
+                    type="button"
+                >
+
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                    >
+
+                        <path
+                            fill="#4285F4"
+                            d="M19.6 10.23c0-.68-.06-1.36-.18-2H10v3.79h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.9-1.75 2.99-4.33 2.99-7.31z"
+                        />
+
+                        <path
+                            fill="#34A853"
+                            d="M10 20c2.7 0 4.96-.89 6.62-2.42l-3.23-2.5c-.9.6-2.06.95-3.39.95-2.6 0-4.8-1.76-5.59-4.12H1.08v2.59A10 10 0 0 0 10 20z"
+                        />
+
+                        <path
+                            fill="#FBBC05"
+                            d="M4.41 11.9a6 6 0 0 1 0-3.8V5.51H1.08a10 10 0 0 0 0 8.98l3.33-2.59z"
+                        />
+
+                        <path
+                            fill="#EA4335"
+                            d="M10 3.98c1.47 0 2.79.5 3.83 1.49l2.87-2.87A9.6 9.6 0 0 0 10 0a10 10 0 0 0-8.92 5.51L4.41 8.1C5.2 5.74 7.4 3.98 10 3.98z"
+                        />
+
+                    </svg>
+
+                    Sign in with Google
+
+                </button>
+
+
+                <div class="auth-divider">
+                    restricted to faff workspace
+                </div>
+
+
+                <div class="auth-meta">
+
+                    <span>
+
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+
+                            <rect
+                                x="3"
+                                y="11"
+                                width="18"
+                                height="10"
+                                rx="2"
+                            />
+
+                            <path
+                                d="M7 11V7a5 5 0 0 1 10 0v4"
+                            />
+
+                        </svg>
+
+                        Encrypted access
+
+                    </span>
+
+
+                    <span>
+
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+
+                            <path
+                                d="M22 6l-10 7L2 6"
+                            />
+
+                            <rect
+                                x="2"
+                                y="4"
+                                width="20"
+                                height="16"
+                                rx="2"
+                            />
+
+                        </svg>
+
+                        usefaff.com only
+
+                    </span>
+
+                </div>
+
+
+                <div id="authError"></div>
+
+
+            </div>
+
+
+            <div class="auth-footer">
+
+                Manage messages from your devices,
+                in one place.
+
+            </div>
+
 
         </div>
 
     </div>
 
 
-    <!-- =================================================
+    <!-- =====================================================
          DASHBOARD
-    ================================================== -->
+    ====================================================== -->
 
     <div
         id="dashboardContent"
         style="display: none;"
     >
 
-        <div class="dashboard">
+
+        <div class="dashboard-container">
 
 
-            <!-- ==========================================
-                 HEADER
-            =========================================== -->
+            <!-- HEADER -->
 
             <header class="topbar">
 
+
                 <div class="brand">
 
-                    <div class="brand-icon">
-                        SMS
+
+                    <div class="brand-logo-wrap">
+
+                        <img
+                            class="brand-logo"
+                            src="/static/faff-logo.png"
+                            alt="faff."
+                        >
+
                     </div>
 
-                    <div class="brand-text">
+
+                    <div class="brand-title">
 
                         <h1>
                             SMS Dashboard
@@ -443,432 +1794,386 @@
 
                     </div>
 
+
                 </div>
 
 
-                <!-- CONNECTION -->
+                <div class="top-right">
 
-                <div class="connection-status">
 
                     <span
-                        id="connectionDot"
-                        class="status-dot connected"
-                    ></span>
+                        class="live-pill"
+                        id="connectionStatus"
+                    >
 
-                    <span id="connectionText">
-                        Connecting...
+                        <span
+                            class="dot"
+                            id="connectionDot"
+                        ></span>
+
+                        <span id="connectionText">
+                            Connecting...
+                        </span>
+
                     </span>
 
-                </div>
-
-
-                <!-- USER -->
-
-                <div id="userInfo">
 
                     <span id="userEmail"></span>
 
-                    <button
-                        id="googleSignOutBtn"
-                        type="button"
-                        class="auth-button"
-                    >
-                        Sign out
-                    </button>
+
+                    <div id="userInfo">
+
+                        <button
+                            id="googleSignOutBtn"
+                            class="btn-signout"
+                            type="button"
+                        >
+                            Sign out
+                        </button>
+
+                    </div>
+
 
                 </div>
+
 
             </header>
 
 
-            <!-- ==========================================
-                 PHONE + SMS TYPE FILTERS
-            =========================================== -->
+            <!-- MAIN -->
 
-            <section class="filter-bar">
+            <main class="dashboard-main">
 
 
-                <!-- PHONE -->
+                <!-- FILTER PANEL -->
 
-                <div class="filter-group phone-group">
-
-                    <h2>
-                        Phone
-                    </h2>
+                <section class="filter-panel">
 
 
-                    <div
-                        id="deviceFilters"
-                        class="filter-buttons"
-                    >
-
-                        <button
-                            type="button"
-                            class="filter-btn active"
-                            data-device="all"
-                        >
-                            All Phones
-                        </button>
+                    <div class="filters">
 
 
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-device="samsung"
-                        >
-                            Samsung
-                        </button>
+                        <!-- PHONE -->
+
+                        <div class="filter-group">
+
+                            <span class="filter-label">
+                                PHONE
+                            </span>
 
 
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-device="poco"
-                        >
-                            Poco
-                        </button>
+                            <div
+                                id="deviceFilters"
+                                class="chip-row"
+                            >
+
+                                <button
+                                    type="button"
+                                    class="filter-btn active"
+                                    data-device="all"
+                                >
+                                    All Phones
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-device="samsung"
+                                >
+                                    Samsung
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-device="poco"
+                                >
+                                    Poco
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="filter-separator"></div>
+
+
+                        <!-- SMS TYPE -->
+
+                        <div class="filter-group">
+
+                            <span class="filter-label">
+                                SMS TYPE
+                            </span>
+
+
+                            <div
+                                id="categoryFilters"
+                                class="chip-row"
+                            >
+
+                                <button
+                                    type="button"
+                                    class="filter-btn active"
+                                    data-category="all"
+                                >
+                                    All SMS
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-category="OTP"
+                                >
+                                    OTP
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-category="Banking"
+                                >
+                                    Banking
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-category="Delivery"
+                                >
+                                    Delivery
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="filter-btn"
+                                    data-category="Other"
+                                >
+                                    Other
+                                </button>
+
+                            </div>
+
+                        </div>
+
 
                     </div>
 
-                </div>
+
+                    <!-- DATE -->
+
+                    <div class="date-row">
 
 
-                <div class="filter-divider"></div>
+                        <span class="date-label">
+                            Date
+                        </span>
 
 
-                <!-- SMS TYPE -->
-
-                <div class="filter-group sms-type-group">
-
-                    <h2>
-                        SMS Type
-                    </h2>
-
-
-                    <div
-                        id="categoryFilters"
-                        class="filter-buttons"
-                    >
-
-                        <button
-                            type="button"
-                            class="filter-btn active"
-                            data-category="all"
+                        <select
+                            id="dateFilterMode"
                         >
-                            All SMS
-                        </button>
+
+                            <option
+                                value="all"
+                                selected
+                            >
+                                All dates
+                            </option>
 
 
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-category="OTP"
-                        >
-                            OTP
-                        </button>
+                            <option value="single">
+                                Select date
+                            </option>
 
 
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-category="Banking"
-                        >
-                            Banking
-                        </button>
+                            <option value="range">
+                                Select date range
+                            </option>
 
+                        </select>
 
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-category="Delivery"
-                        >
-                            Delivery
-                        </button>
-
-
-                        <button
-                            type="button"
-                            class="filter-btn"
-                            data-category="Other"
-                        >
-                            Other
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </section>
-
-
-            <!-- ==========================================
-                 DATE FILTER
-            =========================================== -->
-
-            <section class="date-filter-section">
-
-                <div class="date-filter-group">
-
-                    <h2>
-                        Date
-                    </h2>
-
-
-                    <select
-                        id="dateFilterMode"
-                        class="date-filter-select"
-                    >
-
-                        <option value="all">
-                            All dates
-                        </option>
-
-                        <option value="single">
-                            Select date
-                        </option>
-
-                        <option value="range">
-                            Select date range
-                        </option>
-
-                    </select>
-
-
-                    <!-- SINGLE DATE -->
-
-                    <input
-                        type="date"
-                        id="singleDateInput"
-                        class="date-input"
-                        style="display: none;"
-                    >
-
-
-                    <!-- DATE RANGE -->
-
-                    <div
-                        id="dateRangeInputs"
-                        class="date-range-inputs"
-                        style="display: none;"
-                    >
 
                         <input
+                            id="singleDateInput"
                             type="date"
-                            id="startDateInput"
-                            class="date-input"
+                            style="display: none;"
                         >
 
-                        <span>
+
+                        <input
+                            id="startDateInput"
+                            type="date"
+                            style="display: none;"
+                        >
+
+
+                        <span
+                            id="dateRangeTo"
+                            style="display: none;"
+                        >
                             to
                         </span>
 
+
                         <input
-                            type="date"
                             id="endDateInput"
-                            class="date-input"
+                            type="date"
+                            style="display: none;"
                         >
+
+
+                        <button
+                            id="clearDateFilter"
+                            type="button"
+                            style="display: none;"
+                        >
+                            Clear
+                        </button>
+
 
                     </div>
 
 
-                    <!-- CLEAR -->
+                    <!-- SEARCH -->
 
-                    <button
-                        type="button"
-                        id="clearDateFilter"
-                        class="clear-date-button"
-                        style="display: none;"
-                    >
-                        Clear
-                    </button>
-
-                </div>
-
-            </section>
+                    <div class="search-row">
 
 
-            <!-- ==========================================
-                 SEARCH + REFRESH
-            =========================================== -->
+                        <div class="search-box">
 
-            <section class="toolbar">
 
-                <div class="search-wrapper">
+                            <svg
+                                width="19"
+                                height="19"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#899692"
+                                stroke-width="2"
+                            >
 
-                    <span class="search-icon">
+                                <circle
+                                    cx="11"
+                                    cy="11"
+                                    r="7"
+                                />
 
-                        <svg
-                            width="22"
-                            height="22"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                                <path
+                                    d="m21 21-4.3-4.3"
+                                />
+
+                            </svg>
+
+
+                            <input
+                                id="searchInput"
+                                type="text"
+                                placeholder="Search sender or message..."
+                                autocomplete="off"
+                            >
+
+
+                            <button
+                                id="clearSearch"
+                                type="button"
+                            >
+                                ×
+                            </button>
+
+
+                        </div>
+
+
+                        <button
+                            id="refreshButton"
+                            type="button"
                         >
 
-                            <circle
-                                cx="11"
-                                cy="11"
-                                r="7"
-                            ></circle>
+                            <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.3"
+                            >
 
-                            <line
-                                x1="16.5"
-                                y1="16.5"
-                                x2="21"
-                                y2="21"
-                            ></line>
+                                <path
+                                    d="M21 12a9 9 0 1 1-2.64-6.36"
+                                />
 
-                        </svg>
+                                <path
+                                    d="M21 3v6h-6"
+                                />
 
-                    </span>
+                            </svg>
 
+                            Refresh
 
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Search sender or message..."
-                        autocomplete="off"
-                    >
+                        </button>
 
 
-                    <button
-                        type="button"
-                        id="clearSearch"
-                        class="clear-search"
-                        aria-label="Clear search"
-                    >
-                        ×
-                    </button>
-
-                </div>
+                    </div>
 
 
-                <button
-                    type="button"
-                    id="refreshButton"
-                    class="refresh-button"
-                >
-
-                    <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-
-                        <path
-                            d="M21 12a9 9 0 0 1-15.3 6.5"
-                        ></path>
-
-                        <path
-                            d="M3 12a9 9 0 0 1 15.3-6.5"
-                        ></path>
-
-                        <polyline
-                            points="21 3 21 9 15 9"
-                        ></polyline>
-
-                        <polyline
-                            points="3 21 3 15 9 15"
-                        ></polyline>
-
-                    </svg>
-
-                    <span>
-                        Refresh
-                    </span>
-
-                </button>
-
-            </section>
+                    <div id="categoryDescription">
+                        Showing all SMS messages
+                    </div>
 
 
-            <!-- ==========================================
-                 CATEGORY DESCRIPTION
-            =========================================== -->
-
-            <div
-                id="categoryDescription"
-                class="category-description"
-            >
-                Showing all SMS messages
-            </div>
+                </section>
 
 
-            <!-- ==========================================
-                 MESSAGES HEADER
-            =========================================== -->
+                <!-- MESSAGE HEADER -->
 
-            <section class="messages-header">
+                <div class="messages-header">
 
-                <div>
 
                     <h2>
                         Messages
                     </h2>
 
+
                     <span id="visibleCount">
                         0 messages
                     </span>
 
+
                 </div>
 
-            </section>
+
+                <!-- MESSAGE LIST -->
+
+                <div id="messagesList"></div>
 
 
-            <!-- ==========================================
-                 MESSAGE LIST
-            =========================================== -->
+                <!-- EMPTY -->
 
-            <main
-                id="messagesList"
-                class="messages-list"
-            >
+                <div
+                    id="emptyState"
+                    style="display: none;"
+                >
+                    No messages match your filters.
+                </div>
+
+
             </main>
 
 
-            <!-- ==========================================
-                 EMPTY STATE
-            =========================================== -->
-
-            <section
-                id="emptyState"
-                class="empty-state"
-                style="display: none;"
-            >
-
-                <div class="empty-icon">
-                    ✉
-                </div>
-
-
-                <h3>
-                    No messages found
-                </h3>
-
-
-                <p>
-                    There are no SMS messages matching
-                    your current filters.
-                </p>
-
-            </section>
-
         </div>
+
 
     </div>
 
 
-    <!-- =================================================
-         JAVASCRIPT
-    ================================================== -->
+    <!-- KEEP EXISTING APP.JS -->
 
     <script
         type="module"
