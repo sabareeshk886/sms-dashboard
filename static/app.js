@@ -17,11 +17,14 @@ import {
 // FIREBASE
 // =====================================================
 
-const firebaseApp = initializeApp(firebaseConfig);
+const firebaseApp =
+    initializeApp(firebaseConfig);
 
-const auth = getAuth(firebaseApp);
+const auth =
+    getAuth(firebaseApp);
 
-const googleProvider = new GoogleAuthProvider();
+const googleProvider =
+    new GoogleAuthProvider();
 
 googleProvider.setCustomParameters({
     prompt: "select_account"
@@ -43,6 +46,12 @@ let selectedDevice = "all";
 let selectedCategory = "all";
 
 let searchText = "";
+
+// DATE FILTER
+let selectedDateMode = "all";
+let selectedDate = "";
+let selectedStartDate = "";
+let selectedEndDate = "";
 
 let socket = null;
 
@@ -103,6 +112,22 @@ const connectionText =
 const categoryDescription =
     document.getElementById("categoryDescription");
 
+// DATE FILTER ELEMENTS
+const dateFilterMode =
+    document.getElementById("dateFilterMode");
+
+const singleDateInput =
+    document.getElementById("singleDateInput");
+
+const startDateInput =
+    document.getElementById("startDateInput");
+
+const endDateInput =
+    document.getElementById("endDateInput");
+
+const clearDateFilter =
+    document.getElementById("clearDateFilter");
+
 
 // =====================================================
 // AUTH SCREEN
@@ -123,7 +148,8 @@ function showAuthScreen(message = "") {
     }
 
     if (googleSignInBtn) {
-        googleSignInBtn.style.display = "inline-block";
+        googleSignInBtn.style.display =
+            "inline-block";
     }
 
     if (googleSignOutBtn) {
@@ -136,6 +162,7 @@ function showAuthScreen(message = "") {
 
     if (authError) {
         authError.textContent = message;
+
         authError.style.display =
             message ? "block" : "none";
     }
@@ -175,6 +202,7 @@ function showDashboard(user) {
 
     if (authError) {
         authError.textContent = "";
+
         authError.style.display = "none";
     }
 }
@@ -188,8 +216,7 @@ async function signInWithGoogle() {
 
     try {
 
-        // Clear previous error when user starts
-        // a completely new login attempt.
+        // Clear previous rejection
         authRejectionMessage = "";
 
         showAuthScreen("");
@@ -198,17 +225,14 @@ async function signInWithGoogle() {
             prompt: "select_account"
         });
 
-
         const result =
             await signInWithPopup(
                 auth,
                 googleProvider
             );
 
-
         const user =
             result.user;
-
 
         const email =
             (user.email || "")
@@ -227,31 +251,17 @@ async function signInWithGoogle() {
             authRejectionMessage =
                 "Please sign in with your verified @usefaff.com account.";
 
-
-            /*
-             * Show the error BEFORE signing out.
-             * This prevents the Firebase auth-state
-             * callback from removing it.
-             */
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             firebaseUser = null;
 
-
             await signOut(auth);
 
-
-            /*
-             * Show it again after signOut in case
-             * Firebase changed the auth state.
-             */
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             return;
         }
@@ -268,22 +278,17 @@ async function signInWithGoogle() {
             authRejectionMessage =
                 "Please sign in with your verified @usefaff.com account.";
 
-
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             firebaseUser = null;
 
-
             await signOut(auth);
-
 
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             return;
         }
@@ -312,7 +317,6 @@ async function signInWithGoogle() {
             "Google sign-in failed:",
             error
         );
-
 
         if (
             error.code ===
@@ -397,14 +401,6 @@ onAuthStateChanged(
             );
 
 
-            /*
-             * IMPORTANT:
-             *
-             * If this logout happened because an
-             * unauthorized Gmail was rejected, keep
-             * the rejection message.
-             */
-
             if (
                 authRejectionMessage
             ) {
@@ -444,11 +440,9 @@ onAuthStateChanged(
             authRejectionMessage =
                 "Please sign in with your verified @usefaff.com account.";
 
-
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             firebaseUser = null;
 
@@ -469,11 +463,9 @@ onAuthStateChanged(
             authRejectionMessage =
                 "Please sign in with your verified @usefaff.com account.";
 
-
             showAuthScreen(
                 authRejectionMessage
             );
-
 
             firebaseUser = null;
 
@@ -539,8 +531,9 @@ function initializeDashboard() {
 
     setupSearch();
 
-    updateCategoryDescription();
+    setupDateFilter();
 
+    updateCategoryDescription();
 
     if (refreshButton) {
 
@@ -576,9 +569,11 @@ if (
 async function getAuthToken() {
 
     if (!firebaseUser) {
+
         throw new Error(
             "Not authenticated"
         );
+
     }
 
     return await firebaseUser.getIdToken();
@@ -594,9 +589,12 @@ async function authFetch(
         await getAuthToken();
 
     options.headers = {
+
         ...(options.headers || {}),
+
         "Authorization":
             `Bearer ${token}`
+
     };
 
     return fetch(
@@ -615,7 +613,6 @@ async function loadMessages() {
     if (!firebaseUser) {
         return;
     }
-
 
     try {
 
@@ -718,8 +715,10 @@ function sortMessages() {
                 ).getTime();
 
             return dateB - dateA;
+
         }
     );
+
 }
 
 
@@ -772,6 +771,7 @@ function setupDeviceFilters() {
 
         }
     );
+
 }
 
 
@@ -824,6 +824,7 @@ function setupCategoryFilters() {
 
         }
     );
+
 }
 
 
@@ -873,6 +874,7 @@ function updateCategoryDescription() {
             `Showing ${selectedCategory} messages from ${formatDeviceName(selectedDevice)}`;
 
     }
+
 }
 
 
@@ -928,8 +930,13 @@ function setupSearch() {
 
 
     updateClearButton();
+
 }
 
+
+// =====================================================
+// SEARCH CLEAR BUTTON
+// =====================================================
 
 function updateClearButton() {
 
@@ -952,6 +959,281 @@ function updateClearButton() {
             "none";
 
     }
+
+}
+
+
+// =====================================================
+// DATE FILTER
+// =====================================================
+
+function setupDateFilter() {
+
+    if (!dateFilterMode) {
+        return;
+    }
+
+
+    dateFilterMode.addEventListener(
+        "change",
+        () => {
+
+            selectedDateMode =
+                dateFilterMode.value ||
+                "all";
+
+
+            if (
+                selectedDateMode === "all"
+            ) {
+
+                selectedDate = "";
+
+                selectedStartDate = "";
+
+                selectedEndDate = "";
+
+
+                if (singleDateInput) {
+                    singleDateInput.value = "";
+                }
+
+
+                if (startDateInput) {
+                    startDateInput.value = "";
+                }
+
+
+                if (endDateInput) {
+                    endDateInput.value = "";
+                }
+
+            }
+
+
+            updateDateFilterVisibility();
+
+            renderMessages();
+
+        }
+    );
+
+
+    if (singleDateInput) {
+
+        singleDateInput.addEventListener(
+            "change",
+            () => {
+
+                selectedDate =
+                    singleDateInput.value;
+
+                renderMessages();
+
+            }
+        );
+
+    }
+
+
+    if (startDateInput) {
+
+        startDateInput.addEventListener(
+            "change",
+            () => {
+
+                selectedStartDate =
+                    startDateInput.value;
+
+                renderMessages();
+
+            }
+        );
+
+    }
+
+
+    if (endDateInput) {
+
+        endDateInput.addEventListener(
+            "change",
+            () => {
+
+                selectedEndDate =
+                    endDateInput.value;
+
+                renderMessages();
+
+            }
+        );
+
+    }
+
+
+    if (clearDateFilter) {
+
+        clearDateFilter.addEventListener(
+            "click",
+            () => {
+
+                selectedDateMode = "all";
+
+                selectedDate = "";
+
+                selectedStartDate = "";
+
+                selectedEndDate = "";
+
+
+                if (dateFilterMode) {
+                    dateFilterMode.value = "all";
+                }
+
+
+                if (singleDateInput) {
+                    singleDateInput.value = "";
+                }
+
+
+                if (startDateInput) {
+                    startDateInput.value = "";
+                }
+
+
+                if (endDateInput) {
+                    endDateInput.value = "";
+                }
+
+
+                updateDateFilterVisibility();
+
+                renderMessages();
+
+            }
+        );
+
+    }
+
+
+    updateDateFilterVisibility();
+
+}
+
+
+// =====================================================
+// DATE FILTER VISIBILITY
+// =====================================================
+
+function updateDateFilterVisibility() {
+
+    const dateRangeInputs =
+        document.getElementById("dateRangeInputs");
+
+
+    // SINGLE DATE
+
+    if (singleDateInput) {
+
+        singleDateInput.style.display =
+            selectedDateMode === "single"
+                ? "inline-block"
+                : "none";
+
+    }
+
+
+    // DATE RANGE CONTAINER
+
+    if (dateRangeInputs) {
+
+        dateRangeInputs.style.display =
+            selectedDateMode === "range"
+                ? "flex"
+                : "none";
+
+    }
+
+
+    // START DATE
+
+    if (startDateInput) {
+
+        startDateInput.style.display =
+            selectedDateMode === "range"
+                ? "inline-block"
+                : "none";
+
+    }
+
+
+    // END DATE
+
+    if (endDateInput) {
+
+        endDateInput.style.display =
+            selectedDateMode === "range"
+                ? "inline-block"
+                : "none";
+
+    }
+
+
+    // CLEAR BUTTON
+
+    if (clearDateFilter) {
+
+        clearDateFilter.style.display =
+            selectedDateMode === "all"
+                ? "none"
+                : "inline-block";
+
+    }
+
+}
+
+
+// =====================================================
+// MESSAGE DATE KEY
+// =====================================================
+
+function getMessageDateKey(timestamp) {
+
+    const date =
+        new Date(timestamp);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    const year =
+        date.getFullYear();
+
+    const month =
+        String(
+            date.getMonth() + 1
+        ).padStart(
+            2,
+            "0"
+        );
+
+    const day =
+        String(
+            date.getDate()
+        ).padStart(
+            2,
+            "0"
+        );
+
+
+    return `${year}-${month}-${day}`;
+
 }
 
 
@@ -964,6 +1246,95 @@ function getFilteredMessages() {
     return allMessages.filter(
         message => {
 
+            // =================================================
+            // DATE
+            // =================================================
+
+            if (
+                selectedDateMode === "single"
+            ) {
+
+                if (!selectedDate) {
+                    return true;
+                }
+
+
+                const messageDate =
+                    getMessageDateKey(
+                        message.timestamp
+                    );
+
+
+                if (
+                    messageDate !==
+                    selectedDate
+                ) {
+
+                    return false;
+
+                }
+
+            }
+
+
+            // =================================================
+            // DATE RANGE
+            // =================================================
+
+            if (
+                selectedDateMode === "range"
+            ) {
+
+                const messageDate =
+                    getMessageDateKey(
+                        message.timestamp
+                    );
+
+
+                // Do not filter until
+                // both dates are selected.
+                if (
+                    !messageDate ||
+                    !selectedStartDate ||
+                    !selectedEndDate
+                ) {
+
+                    return true;
+
+                }
+
+
+                // If dates were selected
+                // backwards, don't show anything.
+                if (
+                    selectedStartDate >
+                    selectedEndDate
+                ) {
+
+                    return false;
+
+                }
+
+
+                // Inclusive range.
+                if (
+                    messageDate <
+                        selectedStartDate ||
+                    messageDate >
+                        selectedEndDate
+                ) {
+
+                    return false;
+
+                }
+
+            }
+
+
+            // =================================================
+            // DEVICE
+            // =================================================
+
             if (
                 selectedDevice !== "all" &&
                 String(
@@ -973,8 +1344,13 @@ function getFilteredMessages() {
             ) {
 
                 return false;
+
             }
 
+
+            // =================================================
+            // CATEGORY
+            // =================================================
 
             if (
                 selectedCategory !== "all" &&
@@ -985,8 +1361,13 @@ function getFilteredMessages() {
             ) {
 
                 return false;
+
             }
 
+
+            // =================================================
+            // SEARCH
+            // =================================================
 
             if (searchText) {
 
@@ -995,15 +1376,18 @@ function getFilteredMessages() {
                         message.sender || ""
                     ).toLowerCase();
 
+
                 const body =
                     String(
                         message.body || ""
                     ).toLowerCase();
 
+
                 const category =
                     String(
                         message.category || ""
                     ).toLowerCase();
+
 
                 const device =
                     String(
@@ -1012,20 +1396,32 @@ function getFilteredMessages() {
 
 
                 if (
-                    !sender.includes(searchText) &&
-                    !body.includes(searchText) &&
-                    !category.includes(searchText) &&
-                    !device.includes(searchText)
+                    !sender.includes(
+                        searchText
+                    ) &&
+                    !body.includes(
+                        searchText
+                    ) &&
+                    !category.includes(
+                        searchText
+                    ) &&
+                    !device.includes(
+                        searchText
+                    )
                 ) {
 
                     return false;
+
                 }
+
             }
 
 
             return true;
+
         }
     );
+
 }
 
 
@@ -1052,12 +1448,14 @@ function renderMessages() {
         const count =
             filteredMessages.length;
 
+
         visibleCount.textContent =
             `${count} ${
                 count === 1
                     ? "message"
                     : "messages"
             }`;
+
     }
 
 
@@ -1066,17 +1464,22 @@ function renderMessages() {
     ) {
 
         if (emptyState) {
+
             emptyState.style.display =
                 "block";
+
         }
 
         return;
+
     }
 
 
     if (emptyState) {
+
         emptyState.style.display =
             "none";
+
     }
 
 
@@ -1091,6 +1494,7 @@ function renderMessages() {
 
         }
     );
+
 }
 
 
@@ -1119,6 +1523,8 @@ function createMessageCard(
     );
 
 
+    // TOP ROW
+
     const topRow =
         document.createElement(
             "div"
@@ -1127,6 +1533,8 @@ function createMessageCard(
     topRow.className =
         "message-top";
 
+
+    // SENDER
 
     const sender =
         document.createElement(
@@ -1141,6 +1549,8 @@ function createMessageCard(
         "Unknown";
 
 
+    // BADGES
+
     const badges =
         document.createElement(
             "div"
@@ -1149,6 +1559,8 @@ function createMessageCard(
     badges.className =
         "message-badges";
 
+
+    // DEVICE BADGE
 
     const deviceBadge =
         document.createElement(
@@ -1168,6 +1580,8 @@ function createMessageCard(
             "samsung"
         );
 
+
+    // CATEGORY BADGE
 
     const categoryBadge =
         document.createElement(
@@ -1200,6 +1614,8 @@ function createMessageCard(
     );
 
 
+    // TIME
+
     const time =
         document.createElement(
             "div"
@@ -1214,6 +1630,8 @@ function createMessageCard(
         );
 
 
+    // BODY
+
     const body =
         document.createElement(
             "div"
@@ -1227,6 +1645,8 @@ function createMessageCard(
         "";
 
 
+    // ACTIONS
+
     const actions =
         document.createElement(
             "div"
@@ -1235,6 +1655,8 @@ function createMessageCard(
     actions.className =
         "message-actions";
 
+
+    // MARK AS READ
 
     if (!message.is_read) {
 
@@ -1268,8 +1690,11 @@ function createMessageCard(
         actions.appendChild(
             readButton
         );
+
     }
 
+
+    // BUILD
 
     card.appendChild(
         topRow
@@ -1296,6 +1721,7 @@ function createMessageCard(
 
 
     return card;
+
 }
 
 
@@ -1323,6 +1749,7 @@ async function markAsRead(id) {
             await signOut(auth);
 
             return;
+
         }
 
 
@@ -1331,6 +1758,7 @@ async function markAsRead(id) {
             throw new Error(
                 `Failed to mark message as read: ${response.status}`
             );
+
         }
 
 
@@ -1343,7 +1771,10 @@ async function markAsRead(id) {
 
 
         if (message) {
-            message.is_read = true;
+
+            message.is_read =
+                true;
+
         }
 
 
@@ -1360,7 +1791,9 @@ async function markAsRead(id) {
         alert(
             "Unable to mark this message as read."
         );
+
     }
+
 }
 
 
@@ -1379,13 +1812,14 @@ async function connectWebSocket() {
         socket &&
         (
             socket.readyState ===
-            WebSocket.OPEN ||
+                WebSocket.OPEN ||
             socket.readyState ===
-            WebSocket.CONNECTING
+                WebSocket.CONNECTING
         )
     ) {
 
         return;
+
     }
 
 
@@ -1423,6 +1857,7 @@ async function connectWebSocket() {
                     true,
                     "Live"
                 );
+
             };
 
 
@@ -1447,10 +1882,11 @@ async function connectWebSocket() {
                     if (
                         !message ||
                         typeof message !==
-                        "object"
+                            "object"
                     ) {
 
                         return;
+
                     }
 
 
@@ -1480,6 +1916,7 @@ async function connectWebSocket() {
                         sortMessages();
 
                         renderMessages();
+
                     }
 
 
@@ -1489,7 +1926,9 @@ async function connectWebSocket() {
                         "WebSocket message error:",
                         error
                     );
+
                 }
+
             };
 
 
@@ -1505,6 +1944,7 @@ async function connectWebSocket() {
                     false,
                     "Offline"
                 );
+
             };
 
 
@@ -1529,11 +1969,15 @@ async function connectWebSocket() {
                     reconnectTimer =
                         setTimeout(
                             () => {
+
                                 connectWebSocket();
+
                             },
                             3000
                         );
+
                 }
+
             };
 
 
@@ -1548,7 +1992,9 @@ async function connectWebSocket() {
             false,
             "Offline"
         );
+
     }
+
 }
 
 
@@ -1572,7 +2018,9 @@ function disconnectWebSocket() {
         socket.close();
 
         socket = null;
+
     }
+
 }
 
 
@@ -1590,12 +2038,15 @@ function startPolling() {
             () => {
 
                 if (firebaseUser) {
+
                     loadMessages();
+
                 }
 
             },
             3000
         );
+
 }
 
 
@@ -1608,7 +2059,9 @@ function stopPolling() {
         );
 
         pollingTimer = null;
+
     }
+
 }
 
 
@@ -1632,6 +2085,7 @@ function setConnectionStatus(
             "disconnected",
             !connected
         );
+
     }
 
 
@@ -1639,7 +2093,9 @@ function setConnectionStatus(
 
         connectionText.textContent =
             text;
+
     }
+
 }
 
 
@@ -1658,17 +2114,22 @@ function formatDeviceName(
 
 
     if (value === "samsung") {
+
         return "Samsung";
+
     }
 
 
     if (value === "poco") {
+
         return "Poco";
+
     }
 
 
     return device ||
         "Unknown";
+
 }
 
 
@@ -1696,6 +2157,7 @@ function formatTimestamp(
     ) {
 
         return String(timestamp);
+
     }
 
 
@@ -1709,4 +2171,5 @@ function formatTimestamp(
             minute: "2-digit"
         }
     );
+
 }

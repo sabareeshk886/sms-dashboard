@@ -160,22 +160,203 @@
 
 
         /* ==========================================
+           FILTER BAR
+        =========================================== */
+
+        .filter-bar {
+            padding-bottom: 10px;
+        }
+
+
+        /* ==========================================
+           DATE FILTER
+        =========================================== */
+
+        .date-filter-section {
+            width: 100%;
+            padding: 28px 0 18px;
+        }
+
+        .date-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .date-filter-group h2 {
+            margin: 0 4px 0 0;
+
+            font-size: 15px;
+            font-weight: 700;
+
+            color: #111111;
+        }
+
+        .date-filter-select,
+        .date-input {
+            height: 48px;
+
+            padding: 0 15px;
+
+            border: 1px solid #dcdfe4;
+            border-radius: 10px;
+
+            background: #ffffff;
+            color: #222222;
+
+            font-size: 14px;
+            font-family: inherit;
+
+            outline: none;
+
+            box-sizing: border-box;
+
+            transition:
+                border-color 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+
+        .date-filter-select {
+            min-width: 182px;
+            cursor: pointer;
+        }
+
+        .date-input {
+            min-width: 176px;
+            cursor: pointer;
+        }
+
+        .date-filter-select:hover,
+        .date-input:hover {
+            border-color: #c5c7cb;
+        }
+
+        .date-filter-select:focus,
+        .date-input:focus {
+            border-color: #999999;
+
+            box-shadow:
+                0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+
+        /* DATE RANGE */
+
+        .date-range-inputs {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .date-range-inputs span {
+            color: #777777;
+            font-size: 14px;
+            padding: 0 2px;
+        }
+
+
+        /* CLEAR */
+
+        .clear-date-button {
+            height: 48px;
+
+            padding: 0 18px;
+
+            border: 1px solid #d5d5d5;
+            border-radius: 10px;
+
+            background: #ffffff;
+            color: #222222;
+
+            cursor: pointer;
+
+            font-size: 14px;
+            font-weight: 600;
+
+            margin-left: 2px;
+
+            transition:
+                background 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        .clear-date-button:hover {
+            background: #f5f5f5;
+            border-color: #c7c7c7;
+        }
+
+
+        /* ==========================================
+           SEARCH TOOLBAR
+        =========================================== */
+
+        .toolbar {
+            margin-top: 2px;
+            margin-bottom: 30px;
+        }
+
+
+        /* ==========================================
+           CATEGORY DESCRIPTION
+        =========================================== */
+
+        .category-description {
+            margin-bottom: 10px;
+        }
+
+
+        /* ==========================================
            MOBILE
         =========================================== */
 
         @media (max-width: 700px) {
 
-            .auth-card {
-                padding: 34px 24px;
+            .date-filter-section {
+                padding-top: 22px;
+                padding-bottom: 18px;
             }
 
-            #userInfo {
+            .date-filter-group {
+                align-items: stretch;
                 flex-direction: column;
-                align-items: flex-end;
+                gap: 12px;
             }
 
-            #userEmail {
+            .date-filter-group h2 {
+                margin-bottom: 2px;
+            }
+
+            .date-filter-select,
+            .date-input {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .date-range-inputs {
+                width: 100%;
+
+                flex-direction: column;
+                align-items: stretch;
+
+                gap: 10px;
+            }
+
+            .date-range-inputs .date-input {
+                width: 100%;
+            }
+
+            .date-range-inputs span {
                 display: none;
+            }
+
+            .clear-date-button {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .toolbar {
+                margin-bottom: 24px;
             }
 
         }
@@ -190,8 +371,6 @@
 
     <!-- =================================================
          AUTH SCREEN
-
-         This is the ONLY thing visible before login.
     ================================================== -->
 
     <div id="authScreen">
@@ -230,8 +409,6 @@
 
     <!-- =================================================
          DASHBOARD
-
-         Completely hidden until successful authentication.
     ================================================== -->
 
     <div
@@ -269,6 +446,8 @@
                 </div>
 
 
+                <!-- CONNECTION -->
+
                 <div class="connection-status">
 
                     <span
@@ -283,7 +462,7 @@
                 </div>
 
 
-                <!-- USER INFO -->
+                <!-- USER -->
 
                 <div id="userInfo">
 
@@ -303,7 +482,7 @@
 
 
             <!-- ==========================================
-                 FILTER BAR
+                 PHONE + SMS TYPE FILTERS
             =========================================== -->
 
             <section class="filter-bar">
@@ -423,7 +602,93 @@
 
 
             <!-- ==========================================
-                 SEARCH BAR
+                 DATE FILTER
+            =========================================== -->
+
+            <section class="date-filter-section">
+
+                <div class="date-filter-group">
+
+                    <h2>
+                        Date
+                    </h2>
+
+
+                    <select
+                        id="dateFilterMode"
+                        class="date-filter-select"
+                    >
+
+                        <option value="all">
+                            All dates
+                        </option>
+
+                        <option value="single">
+                            Select date
+                        </option>
+
+                        <option value="range">
+                            Select date range
+                        </option>
+
+                    </select>
+
+
+                    <!-- SINGLE DATE -->
+
+                    <input
+                        type="date"
+                        id="singleDateInput"
+                        class="date-input"
+                        style="display: none;"
+                    >
+
+
+                    <!-- DATE RANGE -->
+
+                    <div
+                        id="dateRangeInputs"
+                        class="date-range-inputs"
+                        style="display: none;"
+                    >
+
+                        <input
+                            type="date"
+                            id="startDateInput"
+                            class="date-input"
+                        >
+
+                        <span>
+                            to
+                        </span>
+
+                        <input
+                            type="date"
+                            id="endDateInput"
+                            class="date-input"
+                        >
+
+                    </div>
+
+
+                    <!-- CLEAR -->
+
+                    <button
+                        type="button"
+                        id="clearDateFilter"
+                        class="clear-date-button"
+                        style="display: none;"
+                    >
+                        Clear
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 SEARCH + REFRESH
             =========================================== -->
 
             <section class="toolbar">
@@ -609,6 +874,7 @@
         type="module"
         src="/static/app.js"
     ></script>
+
 
 </body>
 
