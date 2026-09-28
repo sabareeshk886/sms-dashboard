@@ -7,6 +7,7 @@ let allMessages = [];
 let selectedDevice = "all";
 
 let selectedCategory = "all";
+let selectedSource = "all";
 
 let searchText = "";
 
@@ -145,7 +146,7 @@ if (googleSignOutBtn) {
 function initializeDashboard() {
 
     setupDeviceFilters();
-
+    setupSourceFilters();
     setupCategoryFilters();
 
     setupSearch();
@@ -340,6 +341,29 @@ function setupDeviceFilters() {
 // CATEGORY FILTERS
 // =====================================================
 
+function setupSourceFilters() {
+    const buttons = document.querySelectorAll(
+        "#sourceFilters .filter-btn"
+    );
+
+    buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+
+            buttons.forEach((item) => {
+                item.classList.remove("active");
+            });
+
+            button.classList.add("active");
+
+            selectedSource =
+                button.dataset.source || "all";
+
+            updateCategoryDescription();
+            renderMessages();
+        });
+    });
+}
+
 function setupCategoryFilters() {
 
     const buttons =
@@ -409,7 +433,7 @@ function updateCategoryDescription() {
         ) {
 
             categoryDescription.textContent =
-                "Showing all SMS messages";
+                "Showing all messages";
 
         } else {
 
@@ -891,6 +915,20 @@ function getFilteredMessages() {
 
             }
 
+
+            // =================================================
+            // SOURCE
+            // =================================================
+
+            if (
+                selectedSource !== "all" &&
+                String(message.source || "").toLowerCase() !==
+                selectedSource.toLowerCase()
+            ) {
+
+                return false;
+
+            }
 
             // =================================================
             // DEVICE
@@ -1705,6 +1743,4 @@ function formatTimestamp(
     );
 
 }
-
-
 

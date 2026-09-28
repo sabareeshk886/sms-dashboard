@@ -1901,83 +1901,80 @@
                         <div class="filter-separator"></div>
 
 
-                        <!-- SMS TYPE -->
+                        <!-- MESSAGE SOURCE -->
+<div class="filter-section">
+    <div class="filter-title">
+        MESSAGE SOURCE
+    </div>
 
-                        <div class="filter-group">
+    <div class="filter-buttons" id="sourceFilters">
+        <button
+            class="filter-btn active"
+            data-source="all"
+        >
+            All Messages
+        </button>
 
-                            <span class="filter-label">
-                                SMS TYPE
-                            </span>
+        <button
+            class="filter-btn"
+            data-source="sms"
+        >
+            SMS
+        </button>
 
+        <button
+            class="filter-btn"
+            data-source="whatsapp"
+        >
+            WhatsApp
+        </button>
+    </div>
+</div>
 
-                            <div
-                                id="categoryFilters"
-                                class="chip-row"
-                            >
+<!-- MESSAGE TYPE -->
+<div class="filter-section">
+    <div class="filter-title">
+        MESSAGE TYPE
+    </div>
 
-                                <button
-                                    type="button"
-                                    class="filter-btn active"
-                                    data-category="all"
-                                >
-                                    All SMS
-                                </button>
+    <div class="filter-buttons" id="categoryFilters">
+        <button
+            class="filter-btn active"
+            data-category="all"
+        >
+            All Messages
+        </button>
 
+        <button
+            class="filter-btn"
+            data-category="OTP"
+        >
+            OTP
+        </button>
 
-                                <button
-                                    type="button"
-                                    class="filter-btn"
-                                    data-category="OTP"
-                                >
-                                    OTP
-                                </button>
+        <button
+            class="filter-btn"
+            data-category="Banking"
+        >
+            Banking
+        </button>
 
+        <button
+            class="filter-btn"
+            data-category="Delivery"
+        >
+            Delivery
+        </button>
 
-                                <button
-                                    type="button"
-                                    class="filter-btn"
-                                    data-category="Banking"
-                                >
-                                    Banking
-                                </button>
-
-
-                                <button
-                                    type="button"
-                                    class="filter-btn"
-                                    data-category="Delivery"
-                                >
-                                    Delivery
-                                </button>
-
-
-                                <button
-                                    type="button"
-                                    class="filter-btn"
-                                    data-category="Other"
-                                >
-                                    Other
-                                </button>
-
-                            </div>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- DATE -->
-
-                    <div class="date-row">
-
-
-                        <span class="date-label">
-                            Date
-                        </span>
-
-
-                        <select
+        <button
+            class="filter-btn"
+            data-category="Other"
+        >
+            Other
+        </button>
+    </div>
+</div>
+<select
                             id="dateFilterMode"
                         >
 

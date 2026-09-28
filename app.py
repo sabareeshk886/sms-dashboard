@@ -7,10 +7,6 @@ import psycopg
 from psycopg.rows import dict_row
 from dotenv import load_dotenv
 
-from google.auth import exceptions as google_auth_exceptions
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token
-
 from fastapi import (
     FastAPI,
     Header,
@@ -34,14 +30,11 @@ BASE = Path(__file__).resolve().parent
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 API_TOKEN = os.getenv("API_TOKEN")
-FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
-
 
 if not DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL environment variable is required"
     )
-
 
 if not API_TOKEN:
     raise RuntimeError(
@@ -49,52 +42,35 @@ if not API_TOKEN:
     )
 
 
-if not FIREBASE_PROJECT_ID:
-    raise RuntimeError(
-        "FIREBASE_PROJECT_ID environment variable is required"
-    )
-
-
-# Google authentication request object
-firebase_request = google_requests.Request()
-
-
-# Firebase token issuer
-FIREBASE_ISSUER = (
-    f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}"
-)
-
-
 # ============================================================
-# FASTAPI APP
+# FASTAPI
 # ============================================================
 
 app = FastAPI(
-    title="Private SMS Dashboard"
+    title="Private SMS + WhatsApp Dashboard"
 )
 
 clients = set()
 
 
 # ============================================================
-# SMS MODEL
+# MESSAGE MODEL
 # ============================================================
 
-class SMSIn(BaseModel):
+class MessageIn(BaseModel):
 
     sender: str
-
     body: str
 
     timestamp: Optional[str] = None
 
-    # Device sending the SMS
-    # Existing Samsung devices default to "samsung"
     device_id: str = "samsung"
+
+    source: str = "whatsapp"
 
 
 # ============================================================
-# DATABASE CONNECTION
+# DATABASE
 # ============================================================
 
 def db():
@@ -115,62 +91,137 @@ def init_db():
 
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS messages (
+            CREATE TABLE IF NOT EXISTS unified_messages (
+
                 id SERIAL PRIMARY KEY,
+
                 sender TEXT NOT NULL,
+
                 body TEXT NOT NULL,
+
                 category TEXT NOT NULL,
+
                 timestamp TEXT NOT NULL,
+
                 is_read BOOLEAN NOT NULL DEFAULT FALSE,
-                device_id TEXT NOT NULL DEFAULT 'samsung'
+
+                device_id TEXT NOT NULL DEFAULT 'samsung',
+
+                source TEXT NOT NULL DEFAULT 'sms',
+
+                legacy_id INTEGER
             )
             """
         )
 
         conn.execute(
             """
-            ALTER TABLE messages
+            ALTER TABLE unified_messages
             ADD COLUMN IF NOT EXISTS device_id
             TEXT NOT NULL DEFAULT 'samsung'
             """
         )
 
+        conn.execute(
+            """
+            ALTER TABLE unified_messages
+            ADD COLUMN IF NOT EXISTS source
+            TEXT NOT NULL DEFAULT 'sms'
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE unified_messages
+            ADD COLUMN IF NOT EXISTS legacy_id
+            INTEGER
+            """
+        )
+
+        # Migrate existing WhatsApp messages
+        # from the old WhatsApp-only table.
+
+        try:
+
+            conn.execute(
+                """
+                INSERT INTO unified_messages
+                (
+                    sender,
+                    body,
+                    category,
+                    timestamp,
+                    is_read,
+                    device_id,
+                    source,
+                    legacy_id
+                )
+
+                SELECT
+                    w.sender,
+                    w.body,
+                    w.category,
+                    w.timestamp,
+                    w.is_read,
+                    COALESCE(w.device_id, 'samsung'),
+                    'whatsapp',
+                    w.id
+
+                FROM whatsapp_messages w
+
+                WHERE NOT EXISTS (
+
+                    SELECT 1
+
+                    FROM unified_messages u
+
+                    WHERE u.source = 'whatsapp'
+
+                    AND u.legacy_id = w.id
+                )
+                """
+            )
+
+        except Exception as error:
+
+            print(
+                "WhatsApp migration skipped:",
+                error
+            )
+
         conn.commit()
 
 
-# Initialize database
 init_db()
 
 
 # ============================================================
-# MESSAGE CLASSIFICATION
+# CLASSIFICATION
 # ============================================================
 
-def classify(sender, body):
+def classify(sender: str, body: str):
 
     text = (
         f"{sender} {body}"
     ).lower()
 
-
-    # OTP
     if any(
         keyword in text
         for keyword in (
             "otp",
             "one time password",
+            "one-time password",
             "verification code",
             "verify code",
             "passcode",
             "login code",
             "authentication",
             "security code",
+            "verification",
         )
     ):
         return "OTP"
 
-
-    # Delivery
     if any(
         keyword in text
         for keyword in (
@@ -187,8 +238,6 @@ def classify(sender, body):
     ):
         return "Delivery"
 
-
-    # Banking
     if any(
         keyword in text
         for keyword in (
@@ -210,12 +259,11 @@ def classify(sender, body):
     ):
         return "Banking"
 
-
     return "Other"
 
 
 # ============================================================
-# PHONE API AUTHENTICATION
+# ANDROID AUTHENTICATION
 # ============================================================
 
 def auth(authorization):
@@ -229,146 +277,6 @@ def auth(authorization):
 
 
 # ============================================================
-# FIREBASE TOKEN VERIFICATION
-# ============================================================
-
-def verify_firebase_token(token):
-
-    try:
-
-        # Verify Firebase ID token using Google's
-        # public Firebase signing certificates.
-        decoded = id_token.verify_firebase_token(
-            token,
-            firebase_request,
-            audience=FIREBASE_PROJECT_ID,
-        )
-
-
-        # Verify Firebase issuer.
-        if decoded.get("iss") != FIREBASE_ISSUER:
-
-            raise ValueError(
-                "Invalid Firebase issuer"
-            )
-
-
-        # Firebase user ID must exist.
-        if not decoded.get("sub"):
-
-            raise ValueError(
-                "Missing Firebase user ID"
-            )
-
-
-        # Email must be verified.
-        if decoded.get("email_verified") is not True:
-
-            raise ValueError(
-                "Email is not verified"
-            )
-
-
-        # Get authenticated email.
-        email = (
-            decoded.get("email") or ""
-        ).strip().lower()
-
-
-        if not email:
-
-            raise ValueError(
-                "Email not present"
-            )
-
-
-        # Only allow faff company accounts.
-        if not email.endswith("@usefaff.com"):
-
-            raise ValueError(
-                "Unauthorized email domain"
-            )
-
-
-        return decoded
-
-
-    except (
-        ValueError,
-        google_auth_exceptions.GoogleAuthError,
-    ) as error:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Firebase authentication",
-        ) from error
-
-
-# ============================================================
-# DASHBOARD AUTHENTICATION
-# ============================================================
-
-def verify_dashboard_user(
-    authorization
-):
-
-    if not authorization:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required",
-        )
-
-
-    if not authorization.startswith(
-        "Bearer "
-    ):
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authorization header",
-        )
-
-
-    token = (
-        authorization[7:]
-        .strip()
-    )
-
-
-    if not token:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication token missing",
-        )
-
-
-    return verify_firebase_token(
-        token
-    )
-
-
-# ============================================================
-# WEBSOCKET AUTHENTICATION
-# ============================================================
-
-def verify_websocket_token(token):
-
-    if not token:
-
-        raise HTTPException(
-            status_code=401,
-            detail="WebSocket authentication required",
-        )
-
-
-    return verify_firebase_token(
-        token
-    )
-
-
-# ============================================================
 # WEBSOCKET BROADCAST
 # ============================================================
 
@@ -376,27 +284,19 @@ async def broadcast(data):
 
     dead = []
 
-
     for websocket in list(clients):
 
         try:
 
-            await websocket.send_json(
-                data
-            )
+            await websocket.send_json(data)
 
         except Exception:
 
-            dead.append(
-                websocket
-            )
-
+            dead.append(websocket)
 
     for websocket in dead:
 
-        clients.discard(
-            websocket
-        )
+        clients.discard(websocket)
 
 
 # ============================================================
@@ -419,37 +319,24 @@ def home():
 
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH
 # ============================================================
 
 @app.get("/api/health")
-def health(
-    authorization: Optional[str] = Header(None),
-):
-
-    verify_dashboard_user(
-        authorization
-    )
+def health():
 
     return {
-        "status": "online"
+        "status": "online",
+        "service": "unified-sms-whatsapp-dashboard",
     }
 
 
 # ============================================================
-# GET MESSAGES
+# GET ALL MESSAGES
 # ============================================================
 
 @app.get("/api/messages")
-def messages(
-    authorization: Optional[str] = Header(None),
-):
-
-    # Dashboard users must authenticate.
-    verify_dashboard_user(
-        authorization
-    )
-
+def messages():
 
     with db() as conn:
 
@@ -462,13 +349,16 @@ def messages(
                 category,
                 timestamp,
                 is_read,
-                device_id
-            FROM messages
+                device_id,
+                source
+
+            FROM unified_messages
+
             ORDER BY id DESC
+
             LIMIT 500
             """
         ).fetchall()
-
 
     return rows
 
@@ -479,18 +369,12 @@ def messages(
 
 @app.post("/api/messages")
 async def add(
-    m: SMSIn,
+    m: MessageIn,
     authorization: Optional[str] = Header(None),
 ):
 
-    # Android phones continue using the
-    # private API token.
-    auth(
-        authorization
-    )
+    auth(authorization)
 
-
-    # Timestamp
     ts = (
         m.timestamp
         or datetime.now(
@@ -498,23 +382,17 @@ async def add(
         ).isoformat()
     )
 
-
-    # Category
     category = classify(
         m.sender,
         m.body,
     )
 
-
-    # Normalize device ID
     device_id = (
         m.device_id.strip().lower()
         if m.device_id
         else "samsung"
     )
 
-
-    # Only allow known devices
     if device_id not in (
         "samsung",
         "poco",
@@ -528,30 +406,51 @@ async def add(
             ),
         )
 
+    source = (
+        m.source.strip().lower()
+        if m.source
+        else "whatsapp"
+    )
 
-    # Store in PostgreSQL
+    if source not in (
+        "sms",
+        "whatsapp",
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid source. "
+                "Use 'sms' or 'whatsapp'."
+            ),
+        )
+
     with db() as conn:
 
         row = conn.execute(
             """
-            INSERT INTO messages
-                (
-                    sender,
-                    body,
-                    category,
-                    timestamp,
-                    is_read,
-                    device_id
-                )
+            INSERT INTO unified_messages
+            (
+                sender,
+                body,
+                category,
+                timestamp,
+                is_read,
+                device_id,
+                source
+            )
+
             VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    FALSE,
-                    %s
-                )
+            (
+                %s,
+                %s,
+                %s,
+                %s,
+                FALSE,
+                %s,
+                %s
+            )
+
             RETURNING id
             """,
             (
@@ -560,17 +459,14 @@ async def add(
                 category,
                 ts,
                 device_id,
+                source,
             ),
         ).fetchone()
 
-
         conn.commit()
-
 
     message_id = row["id"]
 
-
-    # Response object
     output = {
 
         "id": message_id,
@@ -586,10 +482,10 @@ async def add(
         "is_read": False,
 
         "device_id": device_id,
+
+        "source": source,
     }
 
-
-    # Send live update to dashboard
     await broadcast(
         {
             "type": "new_message",
@@ -597,42 +493,68 @@ async def add(
         }
     )
 
-
     return output
 
 
 # ============================================================
-# MARK MESSAGE AS READ
+# SMS ENDPOINT
+# ============================================================
+
+@app.post("/api/sms")
+async def add_sms(
+    m: MessageIn,
+    authorization: Optional[str] = Header(None),
+):
+
+    m.source = "sms"
+
+    return await add(
+        m,
+        authorization,
+    )
+
+
+# ============================================================
+# WHATSAPP ENDPOINT
+# ============================================================
+
+@app.post("/api/whatsapp")
+async def add_whatsapp(
+    m: MessageIn,
+    authorization: Optional[str] = Header(None),
+):
+
+    m.source = "whatsapp"
+
+    return await add(
+        m,
+        authorization,
+    )
+
+
+# ============================================================
+# MARK AS READ
 # ============================================================
 
 @app.patch(
     "/api/messages/{mid}/read"
 )
-def read(
-    mid: int,
-    authorization: Optional[str] = Header(None),
-):
-
-    # Dashboard users must authenticate.
-    verify_dashboard_user(
-        authorization
-    )
-
+def read(mid: int):
 
     with db() as conn:
 
         conn.execute(
             """
-            UPDATE messages
+            UPDATE unified_messages
+
             SET is_read = TRUE
+
             WHERE id = %s
             """,
             (mid,),
         )
 
-
         conn.commit()
-
 
     return {
         "ok": True
@@ -646,30 +568,20 @@ def read(
 @app.delete(
     "/api/messages/{mid}"
 )
-def delete(
-    mid: int,
-    authorization: Optional[str] = Header(None),
-):
-
-    # Dashboard users must authenticate.
-    verify_dashboard_user(
-        authorization
-    )
-
+def delete(mid: int):
 
     with db() as conn:
 
         conn.execute(
             """
-            DELETE FROM messages
+            DELETE FROM unified_messages
+
             WHERE id = %s
             """,
             (mid,),
         )
 
-
         conn.commit()
-
 
     return {
         "ok": True
@@ -682,40 +594,18 @@ def delete(
 
 @app.websocket("/ws")
 async def websocket_endpoint(
-    websocket: WebSocket
+    websocket: WebSocket,
 ):
 
-    token = (
-        websocket.query_params.get(
-            "token"
-        )
-    )
-
-
-    try:
-
-        verify_websocket_token(
-            token
-        )
-
-
-    except HTTPException:
-
-        await websocket.close(
-            code=1008
-        )
-
-        return
-
-
-    # Only accept after authentication.
     await websocket.accept()
-
 
     clients.add(
         websocket
     )
 
+    print(
+        "Dashboard WebSocket connected"
+    )
 
     try:
 
@@ -723,18 +613,25 @@ async def websocket_endpoint(
 
             await websocket.receive_text()
 
-
     except WebSocketDisconnect:
 
         clients.discard(
             websocket
         )
 
+        print(
+            "Dashboard WebSocket disconnected"
+        )
 
-    except Exception:
+    except Exception as error:
 
         clients.discard(
             websocket
+        )
+
+        print(
+            "WebSocket error:",
+            error
         )
 
 
