@@ -125,22 +125,7 @@ function showDashboard(user) {
 }
 
 
-// =====================================================
-// BUTTONS
-// =====================================================
-
-if (googleSignOutBtn) {
-
-    googleSignOutBtn.addEventListener(
-        "click",
-        signOutUser
-    );
-
-}
-
-
-// =====================================================
-// INITIALIZE
+// =====================================================`r`n// INITIALIZE
 // =====================================================
 
 function initializeDashboard() {
@@ -1743,4 +1728,5 @@ function formatTimestamp(
     );
 
 }
+
 
