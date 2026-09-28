@@ -1,43 +1,6 @@
-import firebaseConfig from "./config.js";
-
-import {
-    initializeApp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-
-import {
-    getAuth,
-    GoogleAuthProvider,
-    signInWithPopup,
-    signOut,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-
-
-// =====================================================
-// FIREBASE
-// =====================================================
-
-const firebaseApp =
-    initializeApp(firebaseConfig);
-
-const auth =
-    getAuth(firebaseApp);
-
-const googleProvider =
-    new GoogleAuthProvider();
-
-googleProvider.setCustomParameters({
-    prompt: "select_account"
-});
-
-
 // =====================================================
 // STATE
 // =====================================================
-
-let firebaseUser = null;
-
-let authRejectionMessage = "";
 
 let allMessages = [];
 
@@ -72,9 +35,6 @@ const dashboardContent =
 
 const authError =
     document.getElementById("authError");
-
-const googleSignInBtn =
-    document.getElementById("googleSignInBtn");
 
 const googleSignOutBtn =
     document.getElementById("googleSignOutBtn");
@@ -130,46 +90,6 @@ const clearDateFilter =
 
 
 // =====================================================
-// AUTH SCREEN
-// =====================================================
-
-function showAuthScreen(message = "") {
-
-    if (authScreen) {
-        authScreen.style.display = "flex";
-    }
-
-    if (dashboardContent) {
-        dashboardContent.style.display = "none";
-    }
-
-    if (userInfo) {
-        userInfo.style.display = "none";
-    }
-
-    if (googleSignInBtn) {
-        googleSignInBtn.style.display =
-            "inline-block";
-    }
-
-    if (googleSignOutBtn) {
-        googleSignOutBtn.style.display = "none";
-    }
-
-    if (userEmail) {
-        userEmail.textContent = "";
-    }
-
-    if (authError) {
-        authError.textContent = message;
-
-        authError.style.display =
-            message ? "block" : "none";
-    }
-}
-
-
-// =====================================================
 // DASHBOARD
 // =====================================================
 
@@ -185,10 +105,6 @@ function showDashboard(user) {
 
     if (userInfo) {
         userInfo.style.display = "flex";
-    }
-
-    if (googleSignInBtn) {
-        googleSignInBtn.style.display = "none";
     }
 
     if (googleSignOutBtn) {
@@ -209,305 +125,8 @@ function showDashboard(user) {
 
 
 // =====================================================
-// GOOGLE SIGN IN
-// =====================================================
-
-async function signInWithGoogle() {
-
-    try {
-
-        // Clear previous rejection
-        authRejectionMessage = "";
-
-        showAuthScreen("");
-
-        googleProvider.setCustomParameters({
-            prompt: "select_account"
-        });
-
-        const result =
-            await signInWithPopup(
-                auth,
-                googleProvider
-            );
-
-        const user =
-            result.user;
-
-        const email =
-            (user.email || "")
-                .trim()
-                .toLowerCase();
-
-
-        // =================================================
-        // NORMAL GMAIL / WRONG DOMAIN
-        // =================================================
-
-        if (
-            !email.endsWith("@usefaff.com")
-        ) {
-
-            authRejectionMessage =
-                "Please sign in with your verified @usefaff.com account.";
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            firebaseUser = null;
-
-            await signOut(auth);
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            return;
-        }
-
-
-        // =================================================
-        // UNVERIFIED COMPANY ACCOUNT
-        // =================================================
-
-        if (
-            user.emailVerified !== true
-        ) {
-
-            authRejectionMessage =
-                "Please sign in with your verified @usefaff.com account.";
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            firebaseUser = null;
-
-            await signOut(auth);
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            return;
-        }
-
-
-        // =================================================
-        // VALID ACCOUNT
-        // =================================================
-
-        authRejectionMessage = "";
-
-        firebaseUser = user;
-
-        showDashboard(user);
-
-        await loadMessages();
-
-        connectWebSocket();
-
-        startPolling();
-
-
-    } catch (error) {
-
-        console.error(
-            "Google sign-in failed:",
-            error
-        );
-
-        if (
-            error.code ===
-            "auth/popup-closed-by-user"
-        ) {
-
-            showAuthScreen(
-                "Sign-in was cancelled."
-            );
-
-        } else {
-
-            showAuthScreen(
-                error.message ||
-                "Google sign-in failed."
-            );
-
-        }
-
-    }
-}
-
-
-// =====================================================
-// SIGN OUT
-// =====================================================
-
-async function signOutUser() {
-
-    try {
-
-        authRejectionMessage = "";
-
-        firebaseUser = null;
-
-        stopPolling();
-
-        disconnectWebSocket();
-
-        await signOut(auth);
-
-        showAuthScreen("");
-
-    } catch (error) {
-
-        console.error(
-            "Sign-out failed:",
-            error
-        );
-
-    }
-}
-
-
-// =====================================================
-// AUTH STATE
-// =====================================================
-
-onAuthStateChanged(
-    auth,
-    async user => {
-
-        // =================================================
-        // LOGGED OUT
-        // =================================================
-
-        if (!user) {
-
-            firebaseUser = null;
-
-            stopPolling();
-
-            disconnectWebSocket();
-
-            allMessages = [];
-
-            renderMessages();
-
-            setConnectionStatus(
-                false,
-                "Sign in required"
-            );
-
-
-            if (
-                authRejectionMessage
-            ) {
-
-                showAuthScreen(
-                    authRejectionMessage
-                );
-
-            } else {
-
-                showAuthScreen("");
-
-            }
-
-            return;
-        }
-
-
-        // =================================================
-        // EMAIL
-        // =================================================
-
-        const email =
-            (user.email || "")
-                .trim()
-                .toLowerCase();
-
-
-        // =================================================
-        // WRONG DOMAIN
-        // =================================================
-
-        if (
-            !email.endsWith("@usefaff.com")
-        ) {
-
-            authRejectionMessage =
-                "Please sign in with your verified @usefaff.com account.";
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            firebaseUser = null;
-
-            await signOut(auth);
-
-            return;
-        }
-
-
-        // =================================================
-        // UNVERIFIED
-        // =================================================
-
-        if (
-            user.emailVerified !== true
-        ) {
-
-            authRejectionMessage =
-                "Please sign in with your verified @usefaff.com account.";
-
-            showAuthScreen(
-                authRejectionMessage
-            );
-
-            firebaseUser = null;
-
-            await signOut(auth);
-
-            return;
-        }
-
-
-        // =================================================
-        // VALID USER
-        // =================================================
-
-        authRejectionMessage = "";
-
-        firebaseUser = user;
-
-        showDashboard(user);
-
-        await loadMessages();
-
-        connectWebSocket();
-
-        startPolling();
-
-    }
-);
-
-
-// =====================================================
 // BUTTONS
 // =====================================================
-
-if (googleSignInBtn) {
-
-    googleSignInBtn.addEventListener(
-        "click",
-        signInWithGoogle
-    );
-
-}
-
 
 if (googleSignOutBtn) {
 
@@ -563,77 +182,19 @@ if (
 
 
 // =====================================================
-// AUTH FETCH
-// =====================================================
-
-async function getAuthToken() {
-
-    if (!firebaseUser) {
-
-        throw new Error(
-            "Not authenticated"
-        );
-
-    }
-
-    return await firebaseUser.getIdToken();
-}
-
-
-async function authFetch(
-    url,
-    options = {}
-) {
-
-    const token =
-        await getAuthToken();
-
-    options.headers = {
-
-        ...(options.headers || {}),
-
-        "Authorization":
-            `Bearer ${token}`
-
-    };
-
-    return fetch(
-        url,
-        options
-    );
-}
-
-
-// =====================================================
 // LOAD MESSAGES
 // =====================================================
 
 async function loadMessages() {
-
-    if (!firebaseUser) {
-        return;
-    }
-
-    try {
+try {
 
         const response =
-            await authFetch(
-                "/api/messages",
+            await fetch("/api/messages",
                 {
                     method: "GET",
                     cache: "no-store"
                 }
             );
-
-
-        if (
-            response.status === 401
-        ) {
-
-            await signOut(auth);
-
-            return;
-        }
 
 
         if (!response.ok) {
@@ -1734,23 +1295,11 @@ async function markAsRead(id) {
     try {
 
         const response =
-            await authFetch(
-                `/api/messages/${id}/read`,
+            await fetch(`/api/messages/${id}/read`,
                 {
                     method: "PATCH"
                 }
             );
-
-
-        if (
-            response.status === 401
-        ) {
-
-            await signOut(auth);
-
-            return;
-
-        }
 
 
         if (!response.ok) {
@@ -1802,13 +1351,7 @@ async function markAsRead(id) {
 // =====================================================
 
 async function connectWebSocket() {
-
-    if (!firebaseUser) {
-        return;
-    }
-
-
-    if (
+if (
         socket &&
         (
             socket.readyState ===
@@ -1824,12 +1367,7 @@ async function connectWebSocket() {
 
 
     try {
-
-        const token =
-            await getAuthToken();
-
-
-        const protocol =
+const protocol =
             window.location.protocol ===
             "https:"
                 ? "wss:"
@@ -1837,7 +1375,7 @@ async function connectWebSocket() {
 
 
         const wsUrl =
-            `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
+            `${protocol}//${window.location.host}/ws`;
 
 
         socket =
@@ -1964,20 +1502,9 @@ async function connectWebSocket() {
                 );
 
 
-                if (firebaseUser) {
-
-                    reconnectTimer =
-                        setTimeout(
-                            () => {
-
-                                connectWebSocket();
-
-                            },
-                            3000
-                        );
-
-                }
-
+                reconnectTimer = setTimeout(() => {
+                    connectWebSocket();
+                }, 3000);
             };
 
 
@@ -2037,11 +1564,7 @@ function startPolling() {
         setInterval(
             () => {
 
-                if (firebaseUser) {
-
-                    loadMessages();
-
-                }
+                loadMessages();
 
             },
             3000
@@ -2064,6 +1587,15 @@ function stopPolling() {
 
 }
 
+
+
+// =====================================================
+// START DASHBOARD
+// =====================================================
+
+loadMessages();
+connectWebSocket();
+startPolling();
 
 // =====================================================
 // CONNECTION STATUS
@@ -2173,3 +1705,6 @@ function formatTimestamp(
     );
 
 }
+
+
+
