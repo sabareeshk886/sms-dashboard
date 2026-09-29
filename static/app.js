@@ -5,22 +5,18 @@
 let allMessages = [];
 
 let selectedDevice = "all";
-
 let selectedCategory = "all";
 let selectedSource = "all";
 
 let searchText = "";
 
-// DATE FILTER
 let selectedDateMode = "all";
 let selectedDate = "";
 let selectedStartDate = "";
 let selectedEndDate = "";
 
 let socket = null;
-
 let reconnectTimer = null;
-
 let pollingTimer = null;
 
 
@@ -73,7 +69,6 @@ const connectionText =
 const categoryDescription =
     document.getElementById("categoryDescription");
 
-// DATE FILTER ELEMENTS
 const dateFilterMode =
     document.getElementById("dateFilterMode");
 
@@ -114,18 +109,20 @@ function showDashboard(user) {
 
     if (userEmail) {
         userEmail.textContent =
-            user.email || "";
+            user && user.email
+                ? user.email
+                : "";
     }
 
     if (authError) {
         authError.textContent = "";
-
         authError.style.display = "none";
     }
 }
 
 
-// =====================================================`r`n// INITIALIZE
+// =====================================================
+// INITIALIZE
 // =====================================================
 
 function initializeDashboard() {
@@ -135,7 +132,6 @@ function initializeDashboard() {
     setupCategoryFilters();
 
     setupSearch();
-
     setupDateFilter();
 
     updateCategoryDescription();
@@ -172,16 +168,17 @@ if (
 // =====================================================
 
 async function loadMessages() {
-try {
+
+    try {
 
         const response =
-            await fetch("/api/messages",
+            await fetch(
+                "/api/messages",
                 {
                     method: "GET",
                     cache: "no-store"
                 }
             );
-
 
         if (!response.ok) {
 
@@ -191,18 +188,15 @@ try {
 
         }
 
-
         const data =
             await response.json();
 
-
-        if (
-            Array.isArray(data)
-        ) {
+        if (Array.isArray(data)) {
 
             allMessages = data;
 
         } else if (
+            data &&
             Array.isArray(data.messages)
         ) {
 
@@ -215,16 +209,13 @@ try {
 
         }
 
-
         sortMessages();
-
         renderMessages();
 
         setConnectionStatus(
             true,
             "Live"
         );
-
 
     } catch (error) {
 
@@ -262,10 +253,8 @@ function sortMessages() {
                 ).getTime();
 
             return dateB - dateA;
-
         }
     );
-
 }
 
 
@@ -280,7 +269,6 @@ function setupDeviceFilters() {
             "#deviceFilters .filter-btn"
         );
 
-
     buttons.forEach(
         button => {
 
@@ -292,33 +280,69 @@ function setupDeviceFilters() {
                         button.dataset.device ||
                         "all";
 
-
                     buttons.forEach(
                         btn => {
-
                             btn.classList.remove(
                                 "active"
                             );
-
                         }
                     );
-
 
                     button.classList.add(
                         "active"
                     );
 
-
                     updateCategoryDescription();
-
                     renderMessages();
-
                 }
             );
 
         }
     );
+}
 
+
+// =====================================================
+// SOURCE FILTERS
+// =====================================================
+
+function setupSourceFilters() {
+
+    const buttons =
+        document.querySelectorAll(
+            "#sourceFilters .filter-btn"
+        );
+
+    buttons.forEach(
+        button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    buttons.forEach(
+                        item => {
+                            item.classList.remove(
+                                "active"
+                            );
+                        }
+                    );
+
+                    button.classList.add(
+                        "active"
+                    );
+
+                    selectedSource =
+                        button.dataset.source ||
+                        "all";
+
+                    updateCategoryDescription();
+                    renderMessages();
+                }
+            );
+
+        }
+    );
 }
 
 
@@ -326,36 +350,12 @@ function setupDeviceFilters() {
 // CATEGORY FILTERS
 // =====================================================
 
-function setupSourceFilters() {
-    const buttons = document.querySelectorAll(
-        "#sourceFilters .filter-btn"
-    );
-
-    buttons.forEach((button) => {
-        button.addEventListener("click", () => {
-
-            buttons.forEach((item) => {
-                item.classList.remove("active");
-            });
-
-            button.classList.add("active");
-
-            selectedSource =
-                button.dataset.source || "all";
-
-            updateCategoryDescription();
-            renderMessages();
-        });
-    });
-}
-
 function setupCategoryFilters() {
 
     const buttons =
         document.querySelectorAll(
             "#categoryFilters .filter-btn"
         );
-
 
     buttons.forEach(
         button => {
@@ -368,33 +368,25 @@ function setupCategoryFilters() {
                         button.dataset.category ||
                         "all";
 
-
                     buttons.forEach(
                         btn => {
-
                             btn.classList.remove(
                                 "active"
                             );
-
                         }
                     );
-
 
                     button.classList.add(
                         "active"
                     );
 
-
                     updateCategoryDescription();
-
                     renderMessages();
-
                 }
             );
 
         }
     );
-
 }
 
 
@@ -407,7 +399,6 @@ function updateCategoryDescription() {
     if (!categoryDescription) {
         return;
     }
-
 
     if (
         selectedCategory === "all"
@@ -423,13 +414,14 @@ function updateCategoryDescription() {
         } else {
 
             categoryDescription.textContent =
-                `Showing all SMS from ${formatDeviceName(selectedDevice)}`;
+                `Showing all SMS from ${formatDeviceName(
+                    selectedDevice
+                )}`;
 
         }
 
         return;
     }
-
 
     if (
         selectedDevice === "all"
@@ -441,10 +433,10 @@ function updateCategoryDescription() {
     } else {
 
         categoryDescription.textContent =
-            `Showing ${selectedCategory} messages from ${formatDeviceName(selectedDevice)}`;
-
+            `Showing ${selectedCategory} messages from ${formatDeviceName(
+                selectedDevice
+            )}`;
     }
-
 }
 
 
@@ -458,7 +450,6 @@ function setupSearch() {
         return;
     }
 
-
     searchInput.addEventListener(
         "input",
         () => {
@@ -468,14 +459,10 @@ function setupSearch() {
                     .trim()
                     .toLowerCase();
 
-
             updateClearButton();
-
             renderMessages();
-
         }
     );
-
 
     if (clearSearch) {
 
@@ -484,28 +471,22 @@ function setupSearch() {
             () => {
 
                 searchInput.value = "";
-
                 searchText = "";
 
                 updateClearButton();
-
                 renderMessages();
 
                 searchInput.focus();
-
             }
         );
-
     }
 
-
     updateClearButton();
-
 }
 
 
 // =====================================================
-// SEARCH CLEAR BUTTON
+// SEARCH CLEAR
 // =====================================================
 
 function updateClearButton() {
@@ -513,7 +494,6 @@ function updateClearButton() {
     if (!clearSearch) {
         return;
     }
-
 
     if (
         searchInput &&
@@ -527,9 +507,7 @@ function updateClearButton() {
 
         clearSearch.style.display =
             "none";
-
     }
-
 }
 
 
@@ -543,7 +521,6 @@ function setupDateFilter() {
         return;
     }
 
-
     dateFilterMode.addEventListener(
         "change",
         () => {
@@ -552,42 +529,31 @@ function setupDateFilter() {
                 dateFilterMode.value ||
                 "all";
 
-
             if (
                 selectedDateMode === "all"
             ) {
 
                 selectedDate = "";
-
                 selectedStartDate = "";
-
                 selectedEndDate = "";
-
 
                 if (singleDateInput) {
                     singleDateInput.value = "";
                 }
 
-
                 if (startDateInput) {
                     startDateInput.value = "";
                 }
 
-
                 if (endDateInput) {
                     endDateInput.value = "";
                 }
-
             }
 
-
             updateDateFilterVisibility();
-
             renderMessages();
-
         }
     );
-
 
     if (singleDateInput) {
 
@@ -599,12 +565,9 @@ function setupDateFilter() {
                     singleDateInput.value;
 
                 renderMessages();
-
             }
         );
-
     }
-
 
     if (startDateInput) {
 
@@ -616,12 +579,9 @@ function setupDateFilter() {
                     startDateInput.value;
 
                 renderMessages();
-
             }
         );
-
     }
-
 
     if (endDateInput) {
 
@@ -633,12 +593,9 @@ function setupDateFilter() {
                     endDateInput.value;
 
                 renderMessages();
-
             }
         );
-
     }
-
 
     if (clearDateFilter) {
 
@@ -647,46 +604,33 @@ function setupDateFilter() {
             () => {
 
                 selectedDateMode = "all";
-
                 selectedDate = "";
-
                 selectedStartDate = "";
-
                 selectedEndDate = "";
-
 
                 if (dateFilterMode) {
                     dateFilterMode.value = "all";
                 }
 
-
                 if (singleDateInput) {
                     singleDateInput.value = "";
                 }
-
 
                 if (startDateInput) {
                     startDateInput.value = "";
                 }
 
-
                 if (endDateInput) {
                     endDateInput.value = "";
                 }
 
-
                 updateDateFilterVisibility();
-
                 renderMessages();
-
             }
         );
-
     }
 
-
     updateDateFilterVisibility();
-
 }
 
 
@@ -697,10 +641,9 @@ function setupDateFilter() {
 function updateDateFilterVisibility() {
 
     const dateRangeInputs =
-        document.getElementById("dateRangeInputs");
-
-
-    // SINGLE DATE
+        document.getElementById(
+            "dateRangeInputs"
+        );
 
     if (singleDateInput) {
 
@@ -708,11 +651,7 @@ function updateDateFilterVisibility() {
             selectedDateMode === "single"
                 ? "inline-block"
                 : "none";
-
     }
-
-
-    // DATE RANGE CONTAINER
 
     if (dateRangeInputs) {
 
@@ -720,11 +659,7 @@ function updateDateFilterVisibility() {
             selectedDateMode === "range"
                 ? "flex"
                 : "none";
-
     }
-
-
-    // START DATE
 
     if (startDateInput) {
 
@@ -732,11 +667,7 @@ function updateDateFilterVisibility() {
             selectedDateMode === "range"
                 ? "inline-block"
                 : "none";
-
     }
-
-
-    // END DATE
 
     if (endDateInput) {
 
@@ -744,11 +675,7 @@ function updateDateFilterVisibility() {
             selectedDateMode === "range"
                 ? "inline-block"
                 : "none";
-
     }
-
-
-    // CLEAR BUTTON
 
     if (clearDateFilter) {
 
@@ -756,9 +683,7 @@ function updateDateFilterVisibility() {
             selectedDateMode === "all"
                 ? "none"
                 : "inline-block";
-
     }
-
 }
 
 
@@ -778,9 +703,7 @@ function getMessageDateKey(timestamp) {
     ) {
 
         return "";
-
     }
-
 
     const year =
         date.getFullYear();
@@ -801,9 +724,7 @@ function getMessageDateKey(timestamp) {
             "0"
         );
 
-
     return `${year}-${month}-${day}`;
-
 }
 
 
@@ -816,9 +737,7 @@ function getFilteredMessages() {
     return allMessages.filter(
         message => {
 
-            // =================================================
             // DATE
-            // =================================================
 
             if (
                 selectedDateMode === "single"
@@ -828,12 +747,10 @@ function getFilteredMessages() {
                     return true;
                 }
 
-
                 const messageDate =
                     getMessageDateKey(
                         message.timestamp
                     );
-
 
                 if (
                     messageDate !==
@@ -841,15 +758,11 @@ function getFilteredMessages() {
                 ) {
 
                     return false;
-
                 }
-
             }
 
 
-            // =================================================
             // DATE RANGE
-            // =================================================
 
             if (
                 selectedDateMode === "range"
@@ -860,9 +773,6 @@ function getFilteredMessages() {
                         message.timestamp
                     );
 
-
-                // Do not filter until
-                // both dates are selected.
                 if (
                     !messageDate ||
                     !selectedStartDate ||
@@ -870,23 +780,16 @@ function getFilteredMessages() {
                 ) {
 
                     return true;
-
                 }
 
-
-                // If dates were selected
-                // backwards, don't show anything.
                 if (
                     selectedStartDate >
                     selectedEndDate
                 ) {
 
                     return false;
-
                 }
 
-
-                // Inclusive range.
                 if (
                     messageDate <
                         selectedStartDate ||
@@ -895,63 +798,53 @@ function getFilteredMessages() {
                 ) {
 
                     return false;
-
                 }
-
             }
 
 
-            // =================================================
             // SOURCE
-            // =================================================
 
             if (
                 selectedSource !== "all" &&
-                String(message.source || "").toLowerCase() !==
-                selectedSource.toLowerCase()
+                String(
+                    message.source || ""
+                ).toLowerCase() !==
+                    selectedSource.toLowerCase()
             ) {
 
                 return false;
-
             }
 
-            // =================================================
+
             // DEVICE
-            // =================================================
 
             if (
                 selectedDevice !== "all" &&
                 String(
                     message.device_id || ""
                 ).toLowerCase() !==
-                selectedDevice.toLowerCase()
+                    selectedDevice.toLowerCase()
             ) {
 
                 return false;
-
             }
 
 
-            // =================================================
             // CATEGORY
-            // =================================================
 
             if (
                 selectedCategory !== "all" &&
                 String(
                     message.category || ""
                 ).toLowerCase() !==
-                selectedCategory.toLowerCase()
+                    selectedCategory.toLowerCase()
             ) {
 
                 return false;
-
             }
 
 
-            // =================================================
             // SEARCH
-            // =================================================
 
             if (searchText) {
 
@@ -960,24 +853,20 @@ function getFilteredMessages() {
                         message.sender || ""
                     ).toLowerCase();
 
-
                 const body =
                     String(
                         message.body || ""
                     ).toLowerCase();
-
 
                 const category =
                     String(
                         message.category || ""
                     ).toLowerCase();
 
-
                 const device =
                     String(
                         message.device_id || ""
                     ).toLowerCase();
-
 
                 if (
                     !sender.includes(
@@ -995,17 +884,12 @@ function getFilteredMessages() {
                 ) {
 
                     return false;
-
                 }
-
             }
 
-
             return true;
-
         }
     );
-
 }
 
 
@@ -1019,19 +903,15 @@ function renderMessages() {
         return;
     }
 
-
     const filteredMessages =
         getFilteredMessages();
 
-
     messagesList.innerHTML = "";
-
 
     if (visibleCount) {
 
         const count =
             filteredMessages.length;
-
 
         visibleCount.textContent =
             `${count} ${
@@ -1039,51 +919,632 @@ function renderMessages() {
                     ? "message"
                     : "messages"
             }`;
-
     }
-
 
     if (
         filteredMessages.length === 0
     ) {
 
         if (emptyState) {
-
             emptyState.style.display =
                 "block";
-
         }
 
         return;
-
     }
-
 
     if (emptyState) {
-
         emptyState.style.display =
             "none";
-
     }
 
 
-    filteredMessages.forEach(
-        message => {
+    // =================================================
+    // GROUP WHATSAPP CONVERSATIONS
+    // =================================================
 
-            messagesList.appendChild(
-                createMessageCard(
-                    message
-                )
-            );
+    const displayGroups =
+        buildDisplayGroups(
+            filteredMessages
+        );
 
+
+    displayGroups.forEach(
+        group => {
+
+            if (
+                group.type === "whatsapp"
+            ) {
+
+                messagesList.appendChild(
+                    createWhatsAppConversationCard(
+                        group.messages
+                    )
+                );
+
+            } else {
+
+                messagesList.appendChild(
+                    createMessageCard(
+                        group.messages[0]
+                    )
+                );
+            }
         }
     );
-
 }
 
 
 // =====================================================
-// MESSAGE CARD
+// BUILD DISPLAY GROUPS
+// =====================================================
+//
+// WhatsApp:
+//
+// Same device + same sender
+// = ONE conversation.
+//
+// Example:
+//
+// Sell Car at Cars24
+//   message 1
+//   message 2
+//   message 3
+//
+// Amazon India
+//   message 1
+//   message 2
+//
+// SMS:
+//
+// Every SMS remains separate.
+//
+// Nothing is merged in the database.
+// This is ONLY frontend display grouping.
+// =====================================================
+
+function buildDisplayGroups(
+    messages
+) {
+
+    const groups = [];
+
+    const whatsappGroups =
+        new Map();
+
+
+    messages.forEach(
+        message => {
+
+            const source =
+                String(
+                    message.source || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            // -------------------------------------------------
+            // SMS
+            // -------------------------------------------------
+
+            if (
+                source !== "whatsapp"
+            ) {
+
+                groups.push({
+
+                    type: "message",
+
+                    messages: [
+                        message
+                    ]
+                });
+
+                return;
+            }
+
+
+            // -------------------------------------------------
+            // WHATSAPP
+            // -------------------------------------------------
+
+            const device =
+                String(
+                    message.device_id ||
+                    "samsung"
+                )
+                    .trim()
+                    .toLowerCase();
+
+            const sender =
+                String(
+                    message.sender ||
+                    "Unknown"
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const key =
+                `${device}|${sender}`;
+
+
+            if (
+                !whatsappGroups.has(key)
+            ) {
+
+                const group = {
+
+                    type: "whatsapp",
+
+                    messages: []
+
+                };
+
+                whatsappGroups.set(
+                    key,
+                    group
+                );
+
+                groups.push(
+                    group
+                );
+            }
+
+
+            whatsappGroups
+                .get(key)
+                .messages
+                .push(message);
+        }
+    );
+
+
+    // -------------------------------------------------
+    // Sort messages inside each conversation
+    // OLD -> NEW
+    // -------------------------------------------------
+
+    whatsappGroups.forEach(
+        group => {
+
+            group.messages.sort(
+                (a, b) => {
+
+                    const timeA =
+                        new Date(
+                            a.timestamp || 0
+                        ).getTime();
+
+                    const timeB =
+                        new Date(
+                            b.timestamp || 0
+                        ).getTime();
+
+                    return timeA - timeB;
+                }
+            );
+        }
+    );
+
+
+    // -------------------------------------------------
+    // Sort conversations by latest message
+    // NEWEST conversation first
+    // -------------------------------------------------
+
+    groups.sort(
+        (a, b) => {
+
+            const lastA =
+                a.messages[
+                    a.messages.length - 1
+                ];
+
+            const lastB =
+                b.messages[
+                    b.messages.length - 1
+                ];
+
+            const timeA =
+                new Date(
+                    lastA.timestamp || 0
+                ).getTime();
+
+            const timeB =
+                new Date(
+                    lastB.timestamp || 0
+                ).getTime();
+
+            return timeB - timeA;
+        }
+    );
+
+
+    return groups;
+}
+
+
+// =====================================================
+// WHATSAPP CONVERSATION CARD
+// =====================================================
+
+function createWhatsAppConversationCard(
+    messages
+) {
+
+    const latestMessage =
+        messages[
+            messages.length - 1
+        ];
+
+
+    const card =
+        document.createElement(
+            "article"
+        );
+
+    card.className =
+        "message-card whatsapp-conversation";
+
+
+    const hasUnread =
+        messages.some(
+            message =>
+                !message.is_read
+        );
+
+
+    card.classList.add(
+        hasUnread
+            ? "unread"
+            : "read"
+    );
+
+
+    // =================================================
+    // TOP
+    // =================================================
+
+    const topRow =
+        document.createElement(
+            "div"
+        );
+
+    topRow.className =
+        "message-top";
+
+
+    const sender =
+        document.createElement(
+            "div"
+        );
+
+    sender.className =
+        "message-sender";
+
+    sender.textContent =
+        latestMessage.sender ||
+        "Unknown";
+
+
+    const badges =
+        document.createElement(
+            "div"
+        );
+
+    badges.className =
+        "message-badges";
+
+
+    const deviceBadge =
+        document.createElement(
+            "span"
+        );
+
+    deviceBadge.className =
+        "device-badge " +
+        String(
+            latestMessage.device_id ||
+            "samsung"
+        ).toLowerCase();
+
+    deviceBadge.textContent =
+        formatDeviceName(
+            latestMessage.device_id ||
+            "samsung"
+        );
+
+
+    const categoryBadge =
+        document.createElement(
+            "span"
+        );
+
+    categoryBadge.className =
+        "category-badge";
+
+    categoryBadge.textContent =
+        latestMessage.category ||
+        "Other";
+
+
+    badges.appendChild(
+        deviceBadge
+    );
+
+    badges.appendChild(
+        categoryBadge
+    );
+
+
+    topRow.appendChild(
+        sender
+    );
+
+    topRow.appendChild(
+        badges
+    );
+
+
+    card.appendChild(
+        topRow
+    );
+
+
+    // =================================================
+    // CHAT AREA
+    // =================================================
+
+    const conversation =
+        document.createElement(
+            "div"
+        );
+
+    conversation.className =
+        "whatsapp-conversation-messages";
+
+
+    conversation.style.marginTop =
+        "10px";
+
+    conversation.style.borderTop =
+        "1px solid rgba(0,0,0,0.08)";
+
+
+    messages.forEach(
+        message => {
+
+            const messageRow =
+                document.createElement(
+                    "div"
+                );
+
+            messageRow.className =
+                "whatsapp-conversation-message";
+
+
+            messageRow.style.padding =
+                "12px 0";
+
+            messageRow.style.borderBottom =
+                "1px solid rgba(0,0,0,0.06)";
+
+
+            if (
+                !message.is_read
+            ) {
+
+                messageRow.classList.add(
+                    "unread"
+                );
+            }
+
+
+            // BODY
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+            body.className =
+                "message-body whatsapp-message-body";
+
+
+            // IMPORTANT:
+            // textContent keeps the COMPLETE
+            // notification message.
+
+            body.textContent =
+                message.body ||
+                "";
+
+
+            // TIME
+
+            const time =
+                document.createElement(
+                    "div"
+                );
+
+            time.className =
+                "message-time whatsapp-message-time";
+
+            time.textContent =
+                formatTimestamp(
+                    message.timestamp
+                );
+
+
+            messageRow.appendChild(
+                body
+            );
+
+            messageRow.appendChild(
+                time
+            );
+
+
+            conversation.appendChild(
+                messageRow
+            );
+        }
+    );
+
+
+    card.appendChild(
+        conversation
+    );
+
+
+    // =================================================
+    // MARK WHOLE CONVERSATION READ
+    // =================================================
+
+    const unreadMessages =
+        messages.filter(
+            message =>
+                !message.is_read
+        );
+
+
+    if (
+        unreadMessages.length > 0
+    ) {
+
+        const actions =
+            document.createElement(
+                "div"
+            );
+
+        actions.className =
+            "message-actions";
+
+
+        const readButton =
+            document.createElement(
+                "button"
+            );
+
+        readButton.type =
+            "button";
+
+        readButton.className =
+            "message-action";
+
+        readButton.textContent =
+            "Mark as read";
+
+
+        readButton.addEventListener(
+            "click",
+            () => {
+
+                markConversationAsRead(
+                    unreadMessages
+                );
+            }
+        );
+
+
+        actions.appendChild(
+            readButton
+        );
+
+        card.appendChild(
+            actions
+        );
+    }
+
+
+    return card;
+}
+
+
+// =====================================================
+// MARK WHATSAPP CONVERSATION AS READ
+// =====================================================
+
+async function markConversationAsRead(
+    messages
+) {
+
+    try {
+
+        const unreadMessages =
+            messages.filter(
+                message =>
+                    !message.is_read
+            );
+
+
+        for (
+            const message
+            of unreadMessages
+        ) {
+
+            const response =
+                await fetch(
+                    `/api/messages/${message.id}/read`,
+                    {
+                        method: "PATCH"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `Failed to mark message ${message.id} as read: ${response.status}`
+                );
+            }
+
+
+            message.is_read =
+                true;
+
+
+            const original =
+                allMessages.find(
+                    item =>
+                        String(item.id) ===
+                        String(message.id)
+                );
+
+
+            if (original) {
+
+                original.is_read =
+                    true;
+            }
+        }
+
+
+        renderMessages();
+
+
+    } catch (error) {
+
+        console.error(
+            "Mark WhatsApp conversation as read failed:",
+            error
+        );
+
+        alert(
+            "Unable to mark this conversation as read."
+        );
+    }
+}
+
+
+// =====================================================
+// NORMAL MESSAGE CARD
+// =====================================================
+//
+// SMS continues to use this.
+// Every SMS stays as its own card.
 // =====================================================
 
 function createMessageCard(
@@ -1144,7 +1605,7 @@ function createMessageCard(
         "message-badges";
 
 
-    // DEVICE BADGE
+    // DEVICE
 
     const deviceBadge =
         document.createElement(
@@ -1165,7 +1626,7 @@ function createMessageCard(
         );
 
 
-    // CATEGORY BADGE
+    // CATEGORY
 
     const categoryBadge =
         document.createElement(
@@ -1240,9 +1701,9 @@ function createMessageCard(
         "message-actions";
 
 
-    // MARK AS READ
-
-    if (!message.is_read) {
+    if (
+        !message.is_read
+    ) {
 
         const readButton =
             document.createElement(
@@ -1266,7 +1727,6 @@ function createMessageCard(
                 markAsRead(
                     message.id
                 );
-
             }
         );
 
@@ -1274,7 +1734,6 @@ function createMessageCard(
         actions.appendChild(
             readButton
         );
-
     }
 
 
@@ -1300,12 +1759,10 @@ function createMessageCard(
         card.appendChild(
             actions
         );
-
     }
 
 
     return card;
-
 }
 
 
@@ -1318,7 +1775,8 @@ async function markAsRead(id) {
     try {
 
         const response =
-            await fetch(`/api/messages/${id}/read`,
+            await fetch(
+                `/api/messages/${id}/read`,
                 {
                     method: "PATCH"
                 }
@@ -1330,7 +1788,6 @@ async function markAsRead(id) {
             throw new Error(
                 `Failed to mark message as read: ${response.status}`
             );
-
         }
 
 
@@ -1346,7 +1803,6 @@ async function markAsRead(id) {
 
             message.is_read =
                 true;
-
         }
 
 
@@ -1363,9 +1819,7 @@ async function markAsRead(id) {
         alert(
             "Unable to mark this message as read."
         );
-
     }
-
 }
 
 
@@ -1374,7 +1828,8 @@ async function markAsRead(id) {
 // =====================================================
 
 async function connectWebSocket() {
-if (
+
+    if (
         socket &&
         (
             socket.readyState ===
@@ -1385,12 +1840,12 @@ if (
     ) {
 
         return;
-
     }
 
 
     try {
-const protocol =
+
+        const protocol =
             window.location.protocol ===
             "https:"
                 ? "wss:"
@@ -1418,7 +1873,6 @@ const protocol =
                     true,
                     "Live"
                 );
-
             };
 
 
@@ -1447,7 +1901,6 @@ const protocol =
                     ) {
 
                         return;
-
                     }
 
 
@@ -1475,9 +1928,7 @@ const protocol =
                         );
 
                         sortMessages();
-
                         renderMessages();
-
                     }
 
 
@@ -1487,9 +1938,7 @@ const protocol =
                         "WebSocket message error:",
                         error
                     );
-
                 }
-
             };
 
 
@@ -1505,7 +1954,6 @@ const protocol =
                     false,
                     "Offline"
                 );
-
             };
 
 
@@ -1525,9 +1973,13 @@ const protocol =
                 );
 
 
-                reconnectTimer = setTimeout(() => {
-                    connectWebSocket();
-                }, 3000);
+                reconnectTimer =
+                    setTimeout(
+                        () => {
+                            connectWebSocket();
+                        },
+                        3000
+                    );
             };
 
 
@@ -1542,9 +1994,7 @@ const protocol =
             false,
             "Offline"
         );
-
     }
-
 }
 
 
@@ -1568,9 +2018,7 @@ function disconnectWebSocket() {
         socket.close();
 
         socket = null;
-
     }
-
 }
 
 
@@ -1592,7 +2040,6 @@ function startPolling() {
             },
             3000
         );
-
 }
 
 
@@ -1605,20 +2052,9 @@ function stopPolling() {
         );
 
         pollingTimer = null;
-
     }
-
 }
 
-
-
-// =====================================================
-// START DASHBOARD
-// =====================================================
-
-loadMessages();
-connectWebSocket();
-startPolling();
 
 // =====================================================
 // CONNECTION STATUS
@@ -1640,7 +2076,6 @@ function setConnectionStatus(
             "disconnected",
             !connected
         );
-
     }
 
 
@@ -1648,9 +2083,7 @@ function setConnectionStatus(
 
         connectionText.textContent =
             text;
-
     }
-
 }
 
 
@@ -1668,23 +2101,24 @@ function formatDeviceName(
         ).toLowerCase();
 
 
-    if (value === "samsung") {
+    if (
+        value === "samsung"
+    ) {
 
         return "Samsung";
-
     }
 
 
-    if (value === "poco") {
+    if (
+        value === "poco"
+    ) {
 
         return "Poco";
-
     }
 
 
     return device ||
         "Unknown";
-
 }
 
 
@@ -1712,7 +2146,6 @@ function formatTimestamp(
     ) {
 
         return String(timestamp);
-
     }
 
 
@@ -1726,7 +2159,13 @@ function formatTimestamp(
             minute: "2-digit"
         }
     );
-
 }
 
 
+// =====================================================
+// START DASHBOARD
+// =====================================================
+
+loadMessages();
+connectWebSocket();
+startPolling();
