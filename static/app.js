@@ -1155,16 +1155,9 @@ function createWhatsAppConversationCard(
     // WHATSAPP SOURCE BADGE
     // =================================================
 
-    const sourceBadge =
-        document.createElement(
-            "span"
-        );
-
-    sourceBadge.className =
-        "source-badge whatsapp";
-
-    sourceBadge.textContent =
-        "WhatsApp";
+   const sourceBadge = document.createElement("span");
+sourceBadge.className = "category-badge";
+sourceBadge.textContent = "WHATSAPP";
 
 
     // CATEGORY BADGE
