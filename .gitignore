@@ -10,13 +10,12 @@ __pycache__/
 .gradle/
 .idea/
 local.properties
-app/
 build/
+gradle-9.3.0/
+*.apk
 
-build.gradle
-gradle.properties
-settings.gradle
-
-build.gradle
-gradle.properties
-settings.gradle
+# Keep stray Android files out of the repo root (Android project lives in android-bridge/)
+/app/
+/build.gradle
+/gradle.properties
+/settings.gradle
