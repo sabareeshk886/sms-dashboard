@@ -115,7 +115,7 @@ public class WhatsAppNotificationListener
             String title = extras.getString(Notification.EXTRA_TITLE, "");
             String message = extractFullMessage(extras);
 
-            Log.d(TAG, "WhatsApp notification | Title: " + title + " | Message: " + message);
+            Log.d(TAG, "WhatsApp notification | Title: " + title);
 
             if (message == null || message.trim().isEmpty()) return;
 

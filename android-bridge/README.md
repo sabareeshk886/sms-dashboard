@@ -1,13 +1,20 @@
 # Android SMS Dashboard Bridge
 
-Open this folder in Android Studio and Run it on the Samsung A54.
+Android app that forwards incoming SMS and business/OTP WhatsApp messages from a phone to the SMS dashboard API.
 
-Phone setup:
-1. Server URL: http://192.168.80.132:8000
-2. API token: use the same API_TOKEN from the Python server's .env
-3. Save connection
-4. Open Notification Access
-5. Enable SMS Dashboard Bridge
-6. Send a test SMS to the Samsung.
+## Build
 
-The laptop and phone must stay on the same Wi-Fi for this local version. The bridge watches Samsung Messages and Google Messages notifications and forwards their visible sender/message text to the Python API.
+Open this folder in Android Studio and Run it on the phone (Samsung or Poco).
+
+## Phone setup
+
+1. Server URL: defaults to `https://sms-dashboard-gamma.vercel.app` (or your own server, e.g. `http://<laptop-ip>:8000` on the same Wi-Fi).
+2. API token: the same `API_TOKEN` as the dashboard server's `.env`.
+3. Tap **Save connection** and allow the SMS permissions.
+4. Tap **Open Notification Access** and enable **WhatsApp OTP Listener** (needed for WhatsApp forwarding).
+5. Tap **Send test SMS** to check the connection, then send a real SMS to the phone.
+
+## How it works
+
+- **SMS:** `SmsInboxMonitor` reads the SMS inbox and uploads every message newer than the last uploaded one to `/api/sms`. Existing messages are not uploaded on first run. Failed uploads are retried.
+- **WhatsApp:** `WhatsAppNotificationListener` reads WhatsApp / WhatsApp Business notifications and forwards only OTPs and likely business/service messages to `/api/whatsapp`. Personal and group chats are ignored.

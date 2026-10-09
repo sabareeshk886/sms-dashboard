@@ -24,6 +24,7 @@
 
         <receiver
             android:name=".SmsReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
             android:exported="true">
 
             <intent-filter android:priority="999">

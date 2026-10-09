@@ -175,10 +175,14 @@ public class MainActivity extends Activity {
 
   if (
           android.os.Build.VERSION.SDK_INT >= 23
-                  && checkSelfPermission(
+                  && (checkSelfPermission(
                   Manifest.permission.READ_SMS
           )
                   != PackageManager.PERMISSION_GRANTED
+                  || checkSelfPermission(
+                  Manifest.permission.RECEIVE_SMS
+          )
+                  != PackageManager.PERMISSION_GRANTED)
   ) {
 
    status.setText(
@@ -187,7 +191,8 @@ public class MainActivity extends Activity {
 
    requestPermissions(
            new String[]{
-                   Manifest.permission.READ_SMS
+                   Manifest.permission.READ_SMS,
+                   Manifest.permission.RECEIVE_SMS
            },
            READ_SMS_REQUEST_CODE
    );

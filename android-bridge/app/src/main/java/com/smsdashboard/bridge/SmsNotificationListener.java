@@ -8,7 +8,7 @@ public class SmsNotificationListener extends NotificationListenerService{
   Notification n=sbn.getNotification(); if(n==null||n.extras==null)return;
   Bundle e=n.extras; String sender=e.getString(Notification.EXTRA_TITLE); CharSequence cs=e.getCharSequence(Notification.EXTRA_TEXT);
   if(sender==null||cs==null)return; String body=cs.toString().trim(); if(body.isEmpty())return;
-  SharedPreferences p=getSharedPreferences("bridge",0); String server=p.getString("server","http://192.168.80.132:8000"); String token=p.getString("token","");
+  SharedPreferences p=getSharedPreferences("bridge",0); String server=p.getString("server","https://sms-dashboard-gamma.vercel.app"); String token=p.getString("token","");
   if(token.isEmpty())return;
   new Thread(()->Api.send(server,token,sender,body)).start();
  }
